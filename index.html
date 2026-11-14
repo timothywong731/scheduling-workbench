@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>Scheduling Workbench — Timetable Optimisation</title>
+  <style>
+    :root { --ink:#15243c; --muted:#61718a; --line:#dfe6f0; --bg:#f5f8fc; --card:#ffffff; --blue:#335bf3; --blue-dark:#2547d0; --mint:#dff7ee; --teal:#0f8068; --shadow:0 12px 40px rgba(37,56,94,.055); }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height:1.45; }
+    button, textarea, input, select { font:inherit; }
+    button { cursor:pointer; }
+    button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, summary:focus-visible { outline:3px solid #6da8ff; outline-offset:3px; }
+    .wrap { max-width:1400px; margin:auto; padding:26px 28px 80px; }
+    .hero { border-radius:24px; background:linear-gradient(118deg,#102b53 0%,#173d6c 61%,#174e69 100%); color:#fff; padding:34px 39px; display:flex; justify-content:space-between; align-items:center; gap:30px; position:relative; overflow:hidden; }
+    .hero:after { content:""; position:absolute; width:420px; height:420px; border:1px solid rgba(255,255,255,.1); border-radius:50%; right:-80px; top:-195px; box-shadow:0 0 0 55px rgba(255,255,255,.025),0 0 0 110px rgba(255,255,255,.022); pointer-events:none; }
+    .eyebrow { letter-spacing:.18em; text-transform:uppercase; font-size:11px; font-weight:800; color:#94d8ff; }
+    h1 { font-size:clamp(29px,3.2vw,43px); letter-spacing:-.045em; font-weight:770; line-height:1.12; margin:13px 0 13px; }
+    .hero p { margin:0; color:#d1dfef; max-width:660px; font-size:14px; line-height:1.7; }
+    .offline { flex:0 0 auto; position:relative; z-index:1; border:1px solid rgba(167,233,210,.4); border-radius:50px; padding:10px 14px; background:rgba(20,110,97,.23); font-size:12px; font-weight:750; color:#c0ffdf; white-space:nowrap; }
+    .dot { display:inline-block; background:#61e4ad; width:8px; height:8px; border-radius:50%; margin-right:7px; }
+    .toolbar { display:flex; gap:12px; justify-content:space-between; flex-wrap:wrap; align-items:center; margin:21px 0 17px; }
+    .toolbar-left, .toolbar-right { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .btn { min-height:43px; border-radius:11px; font-weight:700; font-size:13px; padding:10px 17px; display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid var(--line); background:white; color:#293c5c; transition:background .15s, transform .15s, border-color .15s; }
+    .btn:hover:not(:disabled) { background:#edf3ff; border-color:#b9c9e6; }
+    .btn.primary { color:white; background:var(--blue); border-color:var(--blue); box-shadow:0 6px 12px rgba(40,86,220,.16); }
+    .btn.primary:hover:not(:disabled) { background:var(--blue-dark); transform:translateY(-1px); }
+    .btn.quiet { background:transparent; }
+    .btn:disabled { opacity:.53; cursor:not-allowed; transform:none; }
+    .info-tag { color:#65758f; font-size:12px; font-weight:600; padding:8px 0; }
+    .alert { padding:13px 16px; border:1px solid #f7c6c8; background:#fff0f0; color:#9d2830; border-radius:11px; font-size:13px; margin:12px 0 18px; white-space:pre-line; }
+    .hint { font-size:12px; color:var(--muted); line-height:1.65; }
+    .metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:22px; }
+    .metric { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:19px 19px 17px; min-width:0; box-shadow:var(--shadow); }
+    .metric .label { font-size:11px; color:var(--muted); font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+    .metric .value { margin:5px 0 4px; font-weight:800; font-size:32px; letter-spacing:-.055em; line-height:1.25; font-variant-numeric:tabular-nums; }
+    .metric .note { font-size:12px; color:#72829a; min-height:17px; }
+    .metric.accent { background:linear-gradient(135deg,#e8fbf4,#f7fffc); border-color:#c2ebd8; }
+    .metric.accent .value { color:#0b8769; }
+    .panel { border:1px solid var(--line); background:white; border-radius:17px; box-shadow:var(--shadow); min-width:0; }
+    .section-head { padding:19px 21px 14px; display:flex; justify-content:space-between; align-items:center; gap:14px; }
+    .section-title { margin:0; font-size:17px; letter-spacing:-.02em; font-weight:760; }
+    .section-sub { font-size:12px; color:var(--muted); margin:4px 0 0; }
+    .count { color:#516783; background:#edf2f9; padding:5px 9px; border-radius:7px; font-size:11px; font-weight:750; }
+    .scenario { display:grid; grid-template-columns:minmax(0,1.27fr) minmax(0,1fr); gap:16px; margin-bottom:22px; }
+    .list { padding:0 13px 13px; max-height:380px; overflow:auto; scrollbar-color:#cbd6e6 transparent; }
+    .entry { display:grid; grid-template-columns:43px minmax(0,1fr) auto; gap:11px; border-top:1px solid #edf1f6; padding:13px 6px 12px; align-items:center; }
+    .entry .icon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:850; font-size:12px; color:#5469a0; background:#eaf0ff; }
+    .entry .name { font-size:13px; font-weight:730; overflow-wrap:anywhere; }
+    .entry .detail { font-size:11.5px; color:#6d7c90; margin-top:3px; }
+    .entry .right { white-space:nowrap; font-size:12px; font-weight:750; color:#45607a; align-self:start; padding-top:2px; }
+    .chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+    .chip { font-size:10px; color:#49617d; background:#f0f4f9; border:1px solid #e6ebf4; padding:2px 6px; border-radius:6px; }
+    .chip.soft { color:#365c82; background:#edf5ff; }
+    .status-line { display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px; font-weight:690; }
+    .pill { border:1px solid #c9dae8; background:#f4f8fc; padding:6px 10px; border-radius:50px; font-size:11px; color:#45617e; font-weight:750; }
+    .pill.good { background:#dcf7e9; border-color:#a9e7c9; color:#14694f; }
+    .pill.running { background:#e9edff; border-color:#bdcbff; color:#264cc7; }
+    .pill.warn { background:#fff5db; border-color:#f3d990; color:#8c6519; }
+    .result { margin-top:7px; }
+    .result-hero { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin:0 0 14px; }
+    .result-hero h2 { margin:0; font-size:19px; letter-spacing:-.025em; }
+    .result-hero p { margin:3px 0 0; font-size:12px; color:var(--muted); }
+    .switches { display:flex; flex-wrap:wrap; gap:6px; }
+    .switch { border-radius:8px; padding:7px 11px; font-weight:750; font-size:12px; background:#fff; border:1px solid #dbe4f0; color:#65748c; }
+    .switch[aria-pressed="true"] { background:#e9edff; color:#2b4fcb; border-color:#adbefc; }
+    .timetable { overflow-x:auto; overscroll-behavior-x:contain; border-radius:0 0 17px 17px; }
+    .calendar { width:100%; min-width:max-content; display:grid; position:relative; --row-height:46px; --time-width:76px; --room-width:205px; }
+    .room-head { height:63px; padding:12px 13px 8px; border-right:1px solid #e2e9f3; border-bottom:1px solid #dbe4f0; background:#fafcff; position:sticky; top:0; z-index:3; }
+    .room-head .room-name { font-weight:800; font-size:12px; }
+    .room-head .room-desc { color:#728198; font-size:10.5px; margin-top:4px; }
+    .time-corner { width:var(--time-width); border-right:1px solid #dce5ef; border-bottom:1px solid #dce5ef; background:#f7faff; position:sticky; left:0; z-index:5; font-size:10px; display:flex; align-items:center; justify-content:center; color:#6e8097; font-weight:750; }
+    .time-axis { width:var(--time-width); background:white; border-right:1px solid #dce5ef; position:sticky; left:0; z-index:4; }
+    .time-label { position:absolute; left:0; right:0; transform:translateY(-7px); font-size:10px; color:#77879d; text-align:center; font-variant-numeric:tabular-nums; }
+    .room-track { min-width:var(--room-width); position:relative; border-right:1px solid #e6edf5; background:repeating-linear-gradient(to bottom,#fff 0,#fff calc(var(--row-height) - 1px),#e7edf4 calc(var(--row-height) - 1px),#e7edf4 var(--row-height)); }
+    .room-track.empty { background:repeating-linear-gradient(to bottom,#f5fbf8 0,#f5fbf8 calc(var(--row-height) - 1px),#e4eee7 calc(var(--row-height) - 1px),#e4eee7 var(--row-height)); }
+    .class-block { position:absolute; left:5px; right:5px; padding:6px 8px; overflow:hidden; border-radius:8px; border-left:4px solid var(--block-line); background:var(--block-bg); color:var(--block-text); cursor:default; font-size:11px; z-index:1; }
+    .class-block .block-title { font-weight:800; line-height:1.25; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+    .class-block .block-time { margin-top:3px; font-size:10px; opacity:.84; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .class-block:focus-visible { outline:3px solid #224ad2; outline-offset:1px; z-index:2; }
+    .empty-label { position:absolute; inset:14px 12px auto; padding:10px 7px; background:#e0f7e9; border:1px dashed #aadfc5; border-radius:7px; font-size:11px; color:#187452; text-align:center; font-weight:750; }
+    .summary-row { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(220px,1fr); gap:16px; margin-top:16px; }
+    .util-list { padding:0 20px 18px; }
+    .util-item { display:grid; grid-template-columns:92px 1fr 45px; align-items:center; gap:11px; margin:13px 0; font-size:12px; }
+    .util-label { white-space:nowrap; font-weight:750; }
+    .bar { height:9px; background:#eaf0f6; border-radius:30px; overflow:hidden; }
+    .bar span { display:block; background:#5771dd; height:100%; border-radius:30px; }
+    .bar.green span { background:#36a582; }
+    .util-percent { font-variant-numeric:tabular-nums; color:#61718a; text-align:right; }
+    .unused-wrap { padding:0 20px 20px; }
+    .unused-pills { display:flex; flex-wrap:wrap; gap:8px; }
+    .unused-pill { padding:8px 10px; background:#e6f7ed; border:1px solid #b9e7d0; font-size:12px; border-radius:8px; color:#16674d; font-weight:750; }
+    .foot { margin-top:24px; display:flex; gap:12px; justify-content:space-between; flex-wrap:wrap; font-size:11px; color:#8a98aa; }
+    .editor { margin:0 0 20px; padding:18px 20px; }
+    .editor textarea { display:block; margin:13px 0 10px; width:100%; min-height:270px; resize:vertical; border:1px solid #bfcde2; border-radius:10px; padding:14px; color:#1c3155; background:#f9fbff; font:12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; tab-size:2; }
+    .editor-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .editor small { font-size:12px; color:var(--muted); }
+    .blank { padding:35px 25px; text-align:center; color:#6d7c91; }
+    .blank strong { display:block; color:#344962; font-size:15px; margin-bottom:7px; }
+    .blank svg { display:block; margin:0 auto 9px; opacity:.6; }
+
+    /* Front-end room and class forms */
+    .head-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; justify-content:flex-end; }
+    .add-btn { padding:8px 11px; min-height:36px; border-radius:9px; border:1px solid #b9c9fc; color:#2949ad; font-size:12px; font-weight:780; background:#edf2ff; }
+    .add-btn:hover { background:#dfe9ff; }
+    .entry-controls { display:flex; gap:5px; align-items:center; justify-content:flex-end; margin-top:7px; }
+    .mini-btn { border:1px solid #d9e3f1; border-radius:7px; background:#fff; color:#33527a; font-size:11px; font-weight:750; padding:5px 8px; min-height:30px; }
+    .mini-btn:hover { border-color:#a8bbf1; background:#eff4ff; }
+    .mini-btn.danger { color:#aa4545; }
+    .mini-btn.danger:hover { background:#fff0f0; border-color:#efb4b4; }
+    .record-panel { margin:0 0 20px; padding:22px; scroll-margin-top:18px; border-color:#b9cbf2; }
+    .record-top { display:flex; justify-content:space-between; align-items:start; flex-wrap:wrap; gap:12px; margin-bottom:17px; }
+    .record-top p { margin:5px 0 0; font-size:12px; color:var(--muted); }
+    .field-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:13px 0 17px; }
+    .field { display:flex; flex-direction:column; gap:6px; min-width:0; color:#475c7a; font-size:12px; font-weight:760; }
+    .field input,.field select { width:100%; min-width:0; height:43px; border:1px solid #c8d5e8; background:white; border-radius:9px; padding:8px 11px; color:#193253; font-size:15px; }
+    .field .explain { font-size:11px; color:var(--muted); font-weight:500; }
+    .form-group { margin:16px 0 17px; }
+    .form-group h3 { margin:0 0 4px; font-size:13px; color:#334865; }
+    .form-group > p { color:var(--muted); font-size:11px; margin:0 0 11px; }
+    .check-grid { display:flex; flex-wrap:wrap; gap:7px; }
+    .check-chip { display:inline-flex; align-items:center; gap:6px; cursor:pointer; border:1px solid #d9e2ef; border-radius:8px; background:#f9fbff; padding:8px 10px; font-size:12px; color:#38516f; min-height:38px; }
+    .check-chip:has(input:checked) { color:#214ab1; border-color:#8fa9ee; background:#eef3ff; }
+    .check-chip input { width:16px; height:16px; accent-color:#355bec; margin:0; }
+    .minor-label { display:block; color:#576b84; font-size:11px; font-weight:730; margin:10px 0 5px; }
+    .inline-input { display:block; border:1px solid #c8d5e8; padding:10px 11px; border-radius:9px; min-height:41px; font-size:14px; width:100%; }
+    .window-rows { display:flex; flex-direction:column; gap:9px; }
+    .window-row { display:flex; align-items:end; gap:10px; flex-wrap:wrap; }
+    .window-row .field { flex:1 1 125px; max-width:230px; }
+    .window-row .mini-btn { min-height:42px; }
+    .time-detail { margin-top:12px; padding:15px; border:1px solid #e1e7f1; background:#f8fbff; border-radius:12px; }
+    .form-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; border-top:1px solid #e7ecf4; padding-top:16px; margin-top:20px; }
+    .form-feedback { margin:12px 0 0; border:1px solid #f1b6b6; border-radius:9px; background:#fff4f4; color:#aa2e35; padding:10px; font-size:12px; white-space:pre-wrap; }
+    .edit-notice { font-size:11px; color:#577086; }
+    .form-hint { padding:10px 12px; background:#f2f7fe; color:#61718a; font-size:12px; border-radius:9px; margin-top:9px; }
+    @media(max-width:580px) {
+      .record-panel { padding:16px 13px; }
+      .field-grid { grid-template-columns:1fr; gap:11px; }
+      .entry { grid-template-columns:36px minmax(0,1fr); }
+      .entry .right { grid-column:2; display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:0; }
+      .entry-controls { margin:0; }
+      .head-actions { gap:5px; }
+      .section-head { align-items:start; }
+      .add-btn { min-height:38px; }
+      .window-row .field { max-width:unset; min-width:0; }
+      .window-row .mini-btn { flex:0 0 auto; }
+    }
+    [hidden] { display:none!important; }
+    @media(max-width:920px) { .scenario {grid-template-columns:1fr;} .metrics {grid-template-columns:repeat(2,1fr)} .list {max-height:320px} .summary-row {grid-template-columns:1fr} }
+    @media(max-width:580px) { .wrap{padding:12px 12px 55px} .hero{padding:27px 22px;border-radius:17px;flex-wrap:wrap;gap:16px} .hero h1{font-size:31px} .offline{padding:7px 10px} .toolbar{align-items:stretch;gap:10px} .toolbar-left{width:100%} .toolbar-left .primary{flex:1} .toolbar-right{width:100%} .btn{font-size:12px;padding:9px 12px} .metrics{gap:9px} .metric{padding:15px 13px;border-radius:12px} .metric .value{font-size:27px} .metric .label{font-size:10px} .section-head{padding:16px 15px 12px} .entry{grid-template-columns:36px minmax(0,1fr) auto;gap:8px} .entry .icon{width:33px;height:33px} .result-hero{align-items:stretch} .room-head{height:62px} .scenario{gap:12px} }
+    @media(prefers-reduced-motion: reduce) { html {scroll-behavior:auto;} .btn {transition:none;} }
+  
+
+/* WORKBENCH REDESIGN — persistent navigation and timetable-first workspace */
+:root { --ink:#1d2d45; --muted:#687991; --line:#e3e9f2; --bg:#f4f7fb; --blue:#4266e7; --blue-dark:#2b4bc8; --shadow:0 4px 18px rgba(32,50,84,.025); }
+html {scroll-behavior:smooth}
+body {background:var(--bg);}
+.app-shell {display:grid; grid-template-columns:242px minmax(0,1fr); align-items:start; min-height:100vh;}
+.sidebar {background:#101e34; color:#d6dfed; padding:26px 14px 22px; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; gap:0; min-width:0;}
+.brand {display:flex; align-items:center; gap:12px; padding:1px 13px 36px;}
+.brand-mark {display:grid; place-items:center; width:39px; height:39px; border-radius:12px; color:#fff; background:#4669e8; box-shadow:0 5px 18px #0c2252; flex:none;}
+.brand-mark svg {width:24px;height:24px}
+.brand-name {display:block; font-size:19px; font-weight:800; color:white; letter-spacing:-.06em; line-height:1.1;}
+.brand-sub {display:block; color:#98abc7; font-size:9px; font-weight:850; letter-spacing:.13em; margin-top:6px;}
+.side-group {padding:0 12px 10px; font-weight:850; font-size:9px; letter-spacing:.18em; color:#7992b4;}
+.side-nav {display:flex; flex-direction:column; gap:5px;}
+.nav-item {display:flex; align-items:center; gap:12px; color:#aebed3; text-align:left; font-size:13px; font-weight:700; border:1px solid transparent; background:transparent; padding:12px 13px; min-height:46px; border-radius:10px; width:100%;}
+.nav-item svg {width:19px; height:19px; flex:none;}
+.nav-item .nav-text {flex:1; white-space:nowrap;}
+.nav-item:hover {background:#1c304d; color:#fff}
+.nav-item.is-active {color:#fff; background:#2b4366; border-color:#3b5779; box-shadow:inset 3px 0 0 #7b9cff;}
+.nav-chevron {color:#8193ad; font-size:20px; font-weight:400;}
+.nav-count {border-radius:6px; min-width:25px; padding:3px 5px; text-align:center; color:#c8d6e9; background:#243a59; font-size:11px;}
+.nav-item.is-active .nav-count {background:#486389; color:white;}
+.side-lower {margin-top:auto; padding:18px 8px 0;}
+.scenario-preview {padding:16px 13px; background:#182c47; border:1px solid #2d415e; border-radius:13px;}
+.scenario-preview .preview-label {color:#96abc6; font-size:9px; letter-spacing:.13em; font-weight:850;}
+.scenario-preview .preview-title {font-size:13px; font-weight:760; margin-top:10px; color:white;}
+.scenario-preview .preview-counts {font-size:12px; line-height:1.6; color:#b8c8df; margin-top:4px;}
+.scenario-preview .preview-line {margin-top:14px; padding-top:12px; border-top:1px solid #344b69; color:#abbdd4; font-size:11px; line-height:1.5;}
+.solver-local {display:flex; gap:9px; align-items:flex-start; margin:18px 5px 0; font-size:11px; line-height:1.5; color:#a4b5cc;}
+.local-dot {background:#53d9a7; border-radius:50%; width:8px; height:8px; margin-top:4px; flex:none; box-shadow:0 0 0 4px rgba(83,217,167,.09);}
+.solver-local strong {font-size:11px; font-weight:750; color:#e4f9ef; display:block;}
+.workspace {min-width:0;}
+.work-topbar {background:white; border-bottom:1px solid var(--line); padding:27px clamp(18px,3vw,43px) 25px; display:flex; justify-content:space-between; gap:20px; align-items:center;}
+.crumb {font-size:10px; text-transform:uppercase; font-weight:850; color:#8996a9; letter-spacing:.13em;}
+.crumb .slash {display:inline-block; margin:0 9px; color:#c8d0dd;}
+.crumb strong {color:#4564a6;}
+.top-title {display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:5px;}
+.top-title h1 {font-size:clamp(24px,2.2vw,32px); color:#1a2b44; margin:0; letter-spacing:-.045em; line-height:1.3;}
+.scenario-tag {background:#eef2ff; color:#5a6fad; border:1px solid #dfe7ff; border-radius:6px; font-size:10px; font-weight:800; padding:4px 7px;}
+.top-description {margin:4px 0 0; font-size:12px; color:#75839a; max-width:680px;}
+.top-actions {display:flex; align-items:center; gap:15px; justify-content:flex-end; flex-wrap:wrap;}
+.day-pill {font-size:11px; color:#60738e; font-weight:700; background:#f5f8fe; border:1px solid #e4ebf4; border-radius:9px; padding:9px 11px; white-space:nowrap;}
+.top-actions .run-button {min-height:45px; padding:10px 18px; white-space:nowrap; border-radius:9px; font-size:12px;}
+.work-content {padding:26px clamp(16px,3vw,43px) 33px; max-width:2000px; margin:0 auto;}
+.view-panel {min-width:0;}
+.workspace-banner {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:11px; margin-bottom:19px;}
+.workspace-banner p {margin:0; color:#6e7e95; font-size:12px;}
+.section-kicker {display:block; text-transform:uppercase; font-weight:850; letter-spacing:.15em; font-size:10px; color:#8291aa; margin-bottom:6px;}
+.work-status {display:flex; align-items:center; gap:7px; border-radius:50px; border:1px solid #d8e2f1; background:#fff; color:#59708d; padding:7px 11px; font-size:11px; font-weight:750;}
+.work-status .small-dot {height:7px;width:7px;border-radius:50%;background:#b1c2db}
+.work-status.ready {color:#176f50;border-color:#b9e8d2;background:#ecf9f2}
+.work-status.ready .small-dot {background:#26a778}
+.work-status.running {color:#315cc7;border-color:#cbd9ff;background:#f2f5ff}
+.work-status.running .small-dot {background:#4775ee}
+.metrics {margin:0 0 22px; gap:13px;}
+.metric {padding:16px 19px 14px; border-radius:12px; box-shadow:none;}
+.metric .label {font-size:10px; letter-spacing:.095em;}
+.metric .value {font-size:29px; margin:6px 0 2px;}
+.metric .note {min-height:15px; font-size:11px;}
+.metric.accent {background:#f0fbf6; border-color:#d2ecdf;}
+.panel {border-radius:12px; box-shadow:none;}
+.result {margin:0;}
+.result-hero {margin-bottom:0; background:#fff; border:1px solid var(--line); border-bottom:none; padding:17px 20px 16px; border-radius:12px 12px 0 0;}
+.result-hero h2 {font-size:17px;}
+.result-hero p {max-width:640px; line-height:1.5;}
+.result > .panel {border-radius:0 0 12px 12px; overflow:hidden;}
+.result .toolbar-right {gap:9px;}
+.result .btn {min-height:35px; padding:7px 11px;}
+.switch {min-height:34px;}
+.timetable {border-radius:0;}
+.calendar {--row-height:49px; --room-width:200px;}
+.room-head {height:68px; padding:14px 11px 9px; background:#f8faff;}
+.room-head .room-name {font-size:11.5px;}
+.room-head .room-desc {font-size:10px;}
+.room-track {background:repeating-linear-gradient(to bottom,#fff 0,#fff calc(var(--row-height) - 1px),#edf1f6 calc(var(--row-height) - 1px),#edf1f6 var(--row-height));}
+.class-block {border-radius:7px; padding:7px 9px;}
+#statusStrip {background:#fbfcfe;}
+.summary-row {margin-top:18px;}
+.summary-row .panel {min-width:0;}
+.util-list {padding-bottom:18px;}
+.blank {padding:68px 22px; background:linear-gradient(180deg,#fcfdff,#fff);}
+.blank strong {font-size:16px; margin:9px 0;}
+.content-intro {display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:13px; margin:0 0 20px;}
+.content-intro h2 {font-size:21px; margin:0; line-height:1.3; letter-spacing:-.035em;}
+.content-intro p {font-size:12px; color:var(--muted); margin:5px 0 0;}
+.content-intro .info-counter {background:#fff; border:1px solid var(--line); border-radius:9px; color:#687b97; font-size:11px; font-weight:800; padding:9px 12px;}
+.manage-panel .section-head {padding:19px 21px 15px; border-bottom:1px solid #edf1f6;}
+.manage-panel .list {max-height:none; overflow:visible; padding:0 17px 6px;}
+.manage-panel .entry {padding:16px 7px; border-top:1px solid #e9eef5; grid-template-columns:45px minmax(0,1fr) auto;}
+.manage-panel .entry:first-child {border-top:none;}
+.manage-panel .entry .icon {background:#edf2fb; color:#41649b; width:39px; height:39px;}
+.manage-panel .entry .name {font-size:13px;}
+.manage-panel .entry .detail {font-size:12px; line-height:1.5;}
+.manage-panel .entry .right {display:flex; flex-direction:column; gap:3px; align-items:flex-end; padding-top:3px;}
+.manage-panel .entry .right span {font-size:12px;}
+.manage-panel .entry .entry-controls {margin-top:7px;}
+.head-actions .add-btn {background:var(--blue);border-color:var(--blue);color:white;min-height:39px;padding:8px 15px;font-size:12px;}
+.head-actions .add-btn:hover {background:var(--blue-dark);}
+.record-panel {margin:0 0 18px; padding:23px; scroll-margin-top:18px; background:#fbfdff; border:1px solid #aebffc;}
+.record-top {border-bottom:1px solid #e3eaf5; padding-bottom:13px;}
+.section-title {font-size:16px;}
+.data-grid {display:grid;grid-template-columns:minmax(0,1fr) minmax(250px,.62fr);gap:16px;align-items:start;}
+.data-card {padding:23px;}
+.data-card h3 {margin:0 0 6px; font-size:16px;}
+.data-card p {font-size:12px;color:var(--muted);line-height:1.65; margin:0 0 16px;}
+.data-actions {display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;}
+.data-actions .btn {min-width:135px;}
+.data-secondary {margin-top:17px; display:grid; gap:10px;}
+.data-tip {display:flex; align-items:flex-start; gap:10px; padding:12px 0; border-bottom:1px solid #eef2f7; font-size:12px; color:#687991; line-height:1.55;}
+.data-tip b {color:#2f486a;}
+.tip-num {display:grid; place-items:center; flex:0 0 auto; width:25px;height:25px;border:1px solid #dce6f7;background:#f1f6ff;border-radius:7px;color:#4764c3;font-size:11px;font-weight:850;}
+.json-wrap {margin-top:16px;}
+.json-wrap > .panel {padding:21px 23px;}
+.json-wrap .editor {border:0; padding:16px 0 0; margin:0; box-shadow:none;}
+.editor textarea {min-height:380px; max-width:100%;}
+.foot {padding:20px 0 0; border-top:1px solid #e4eaf2; margin:29px 0 0; font-size:10px;}
+@media(max-width:1100px) {
+ .app-shell {grid-template-columns:206px minmax(0,1fr);}
+ .sidebar {padding-left:10px;padding-right:10px;}
+ .nav-item {gap:9px;padding:10px 10px;}
+ .work-topbar {padding:22px 23px;}
+ .work-content {padding:21px 22px 32px;}
+ .day-pill {display:none;}
+ .metrics {grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media(max-width:760px) {
+ .app-shell {display:block;}
+ .sidebar {position:relative;top:auto;height:auto;padding:14px 12px 0;background:#101e34;}
+ .brand {padding:0 5px 12px;gap:10px;}
+ .brand-mark {width:34px;height:34px;border-radius:10px;}
+ .brand-name {font-size:17px;}
+ .brand-sub {font-size:8px;margin-top:3px;}
+ .side-group,.side-lower {display:none;}
+ .side-nav {flex-direction:row;overflow-x:auto;gap:5px;scrollbar-width:none;padding-bottom:9px;}
+ .side-nav::-webkit-scrollbar {display:none;}
+ .nav-item {width:auto;flex:0 0 auto;min-height:40px;gap:7px;padding:8px 11px;border-radius:8px;font-size:12px;}
+ .nav-item .nav-text {flex:0 0 auto;}
+ .nav-item svg {width:16px;height:16px;}
+ .nav-chevron {display:none;}
+ .nav-count {min-width:20px;padding:2px 4px;font-size:10px;}
+ .nav-item.is-active {box-shadow:inset 0 -2px 0 #8ca6ff;}
+ .work-topbar {padding:19px 16px;align-items:flex-start;flex-wrap:wrap;gap:12px;}
+ .top-title h1 {font-size:25px;}
+ .top-actions {justify-content:space-between;width:100%;}
+ .top-actions .run-button {flex:1;}
+ .day-pill {display:inline-block;}
+ .work-content {padding:18px 12px 28px;}
+ .data-grid {grid-template-columns:1fr;}
+ .summary-row {grid-template-columns:1fr;}
+ .manage-panel .entry {grid-template-columns:38px minmax(0,1fr);gap:8px;}
+ .manage-panel .entry .right {grid-column:2;flex-direction:row;gap:10px;align-items:center;justify-content:space-between; flex-wrap:wrap;}
+ .manage-panel .entry .entry-controls {margin:0;}
+ .manage-panel .list {padding:0 11px 5px;}
+}
+@media(max-width:430px) {
+ .top-actions .day-pill {width:100%;text-align:center;}
+ .metrics {gap:9px;}
+ .metric {padding:14px 13px;}
+ .metric .value {font-size:26px;}
+ .metric .note {font-size:10px;}
+ .result-hero {padding:15px 13px;}
+ .result .toolbar-right {width:100%;justify-content:space-between;}
+ .content-intro {align-items:flex-start;}
+ .content-intro .info-counter {font-size:10px;}
+ .head-actions {justify-content:flex-start;}
+ .manage-panel .section-head {flex-wrap:wrap;}
+ .data-card {padding:17px;}
+ .record-panel {padding:17px 12px;}
+ .foot {line-height:1.6;}
+}
+
+/* The grid positioning code uses 46px per half-hour for reliable alignment. */
+.calendar {--row-height:46px;}
+
+/* Scheduling Workbench identity and scenario generators */
+:root { --ink:#182f3e; --muted:#647c87; --line:#dae6e8; --bg:#f2f7f7; --blue:#128679; --blue-dark:#0c695e; --mint:#e0f7ed; --teal:#0c7665; }
+.sidebar {background:#0d2530;}
+.brand {gap:11px;padding-bottom:31px;}
+.brand-mark {background:#148779;box-shadow:0 7px 18px rgba(4,30,35,.4);}
+.brand-name {font-size:16px;letter-spacing:-.036em;line-height:1.08;}
+.brand-second {display:block;font-size:19px;letter-spacing:-.04em;}
+.brand-dot {color:#65e6c8;}
+.brand-sub {color:#8eb7b8;font-size:9px;margin-top:7px;letter-spacing:.13em;}
+.side-group {color:#7c9ea9;}
+.nav-item {color:#afc7ce;}
+.nav-item:hover {background:#153b44;}
+.nav-item.is-active {background:#174a4e;border-color:#28656a;box-shadow:inset 3px 0 0 #62dbbe;}
+.nav-count {background:#19434c;color:#bfe2dc;}
+.nav-item.is-active .nav-count {background:#267269;}
+.scenario-preview {background:#123640;border-color:#2a5059;}
+.scenario-preview .preview-line {border-color:#31555c;}
+.scenario-preview .preview-label {color:#97bdb8;}
+.scenario-preview .preview-title {color:#edfffa;}
+.scenario-preview .preview-counts {color:#bfd7d4;}
+.solver-local {color:#a7cac8;}
+.solver-local strong {color:#daf8ef;}
+.work-topbar {background:#fff;border-color:var(--line);}
+.crumb strong {color:#128679;}
+.scenario-tag {background:#e9f7f3;border-color:#ccebe0;color:#167866;}
+.day-pill {background:#f2f8f6;border-color:#dbece6;color:#456e70;}
+.top-title h1 {color:#16343d;}
+.section-kicker {color:#43877d;}
+.metric.accent {background:#e9f8f1;border-color:#c1e9d8;}
+.work-status.ready {background:#effbf6;border-color:#b9e9d5;color:#187e5d;}
+.head-actions .add-btn {background:#128679;border-color:#128679;}
+.head-actions .add-btn:hover {background:#096a60;}
+.class-block {border-radius:8px;}
+.generator-bar {border:1px solid #cfe4df;background:linear-gradient(110deg,#f6fffb,#edf8f5);border-radius:14px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:13px;margin-bottom:18px;}
+.generator-intro {display:flex;align-items:center;gap:12px;min-width:0;}
+.generator-icon {width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#d7f1e7;color:#0b7569;font-size:27px;flex:none;line-height:1;}
+.generator-intro strong {display:block;color:#1a4a49;font-size:13px;font-weight:800;}
+.generator-intro small {display:block;color:#537d78;font-size:11px;margin-top:3px;line-height:1.45;}
+.generator-actions {display:flex;gap:9px;align-items:center;flex-wrap:wrap;min-width:0;}
+.generator-actions label {display:flex;align-items:center;gap:8px;color:#356c65;font-size:11px;font-weight:750;}
+.generator-actions input {width:65px;min-height:39px;border:1px solid #b9d7d1;border-radius:8px;background:white;color:#1a3d41;padding:6px 9px;font-size:14px;}
+.random-btn {min-height:40px;border:1px solid #118376;color:#fff;background:#117d72;padding:9px 14px;border-radius:9px;font-size:12px;font-weight:800;}
+.random-btn:hover {background:#075e56;}
+.random-btn:disabled {opacity:.55;cursor:not-allowed;}
+.generator-feedback {font-size:11px;color:#176c5c;font-weight:650;width:100%;margin:0;}
+@media(max-width:760px) {.brand {padding-bottom:12px;}.brand-name {font-size:12px;}.brand-second {font-size:15px;}.brand-sub {font-size:8px;}.nav-item.is-active {box-shadow:inset 0 -2px 0 #65dfbd;}}
+@media(max-width:480px) {.generator-bar {padding:14px;}.generator-actions {width:100%;}.random-btn {flex:1;}.generator-intro small {max-width:260px;}}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Workbench navigation">
+    <div class="brand">
+      <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><path d="M14 17.5h7M17.5 14v7"/></svg></div>
+      <div><strong class="brand-name">Scheduling<span class="brand-second">Workbench<span class="brand-dot">.</span></span></strong><span class="brand-sub">RESOURCE OPTIMISATION</span></div>
+    </div>
+    <div class="side-group">WORKSPACE</div>
+    <nav class="side-nav" aria-label="Workspace views"><button type="button" class="nav-item is-active" data-view="timetable" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 18h3"/></svg><span class="nav-text">Timetable</span><span class="nav-chevron">›</span></button>
+<button type="button" class="nav-item" data-view="classes"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.2c-2.8-2-6.1-2.4-9-1.4v14c2.9-1 6.2-.6 9 1.4m0-14c2.8-2 6.1-2.4 9-1.4v14c-2.9-1-6.2-.6-9 1.4m0-14v14"/></svg><span class="nav-text">Classes</span><span class="nav-count" id="navClassesCount">—</span></button>
+<button type="button" class="nav-item" data-view="rooms"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v17M2 21h20M8 8h3v3H8zM15 8h2v3h-2zM9 21v-6h6v6"/></svg><span class="nav-text">Rooms</span><span class="nav-count" id="navRoomsCount">—</span></button>
+<button type="button" class="nav-item" data-view="data"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16M8 4v6M16 14v6"/><circle cx="8" cy="7" r="2" fill="#101d33"/><circle cx="16" cy="17" r="2" fill="#101d33"/></svg><span class="nav-text">Data & settings</span><span class="nav-chevron">›</span></button></nav>
+    <div class="side-lower">
+      <div class="scenario-preview">
+        <div class="preview-label">ACTIVE SCENARIO</div>
+        <div class="preview-title">Daily teaching schedule</div>
+        <div class="preview-counts" id="scenarioSummary">14 classes · 8 rooms</div>
+        <div class="preview-line">Optimisation goal<br><strong style="color:#e5eefb;font-weight:780">Maximise rooms kept free</strong></div>
+      </div>
+      <div class="solver-local"><span class="local-dot"></span><span><strong>100% local optimisation</strong>No server, account or network connection.</span></div>
+    </div>
+  </aside>
+  <main class="workspace">
+    <header class="work-topbar">
+      <div class="work-heading">
+        <div class="crumb">SCHEDULING WORKBENCH <span class="slash">/</span> <strong id="viewBreadcrumb">Timetable</strong></div>
+        <div class="top-title"><h1 id="viewHeading">Timetable</h1><span class="scenario-tag">EXAMPLE SCENARIO</span></div>
+        <p class="top-description" id="viewDescription">Optimise room use. Build a conflict-free teaching schedule.</p>
+      </div>
+      <div class="top-actions">
+        <span class="day-pill" id="dayInfo">09:00–17:00 · 30-minute slots</span>
+        <button type="button" class="btn primary run-button" id="runBtn">▶ &nbsp;Run optimisation</button>
+        <button type="button" class="btn run-button" id="cancelBtn" hidden>■ &nbsp;Stop search</button>
+      </div>
+    </header>
+    <div class="work-content">
+      <div id="errorBox" class="alert" role="alert" hidden></div>
+      <section class="view-panel" id="view-timetable" data-view-panel="timetable" aria-label="Timetable workbench">
+        <div class="workspace-banner">
+          <p><span class="section-kicker">SCHEDULE OVERVIEW</span>Capacity-aware allocation with mandatory facilities and flexible time windows.</p>
+          <span class="work-status" id="workStatus" role="status"><span class="small-dot" aria-hidden="true"></span><span id="workStatusText">Changes ready</span></span>
+        </div>
+  <section class="metrics" aria-label="Summary metrics">
+    <div class="metric"><div class="label">Classes scheduled</div><div class="value" id="classesValue">—</div><div class="note" id="classesNote">Ready for a new solve</div></div>
+    <div class="metric"><div class="label">Rooms used</div><div class="value" id="usedValue">—</div><div class="note" id="usedNote">Minimise room footprint</div></div>
+    <div class="metric accent"><div class="label">Rooms left unused</div><div class="value" id="emptyValue">—</div><div class="note" id="emptyNote">Primary objective</div></div>
+    <div class="metric"><div class="label">Solver status</div><div class="value" id="statusValue" style="font-size:20px;letter-spacing:-.035em;margin-top:11px">Ready</div><div class="note" id="statusNote">Branch-and-bound</div></div>
+  </section>
+
+
+  <section class="result" id="resultSection" aria-labelledby="timetableTitle">
+    <div class="result-hero">
+      <div><h2 id="timetableTitle">Optimised timetable</h2><p id="resultMessage">Run the optimiser to create a conflict-free timetable.</p></div>
+      <div class="toolbar-right" id="resultControls" hidden>
+        <div class="switches" role="group" aria-label="Timetable rooms shown">
+          <button type="button" class="switch" id="usedOnlyBtn" aria-pressed="true">Used rooms</button>
+          <button type="button" class="switch" id="allRoomsBtn" aria-pressed="false">All rooms</button>
+        </div>
+        <button type="button" class="btn" id="csvBtn">↓ &nbsp;Export CSV</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div id="statusStrip" style="padding:15px 18px;border-bottom:1px solid var(--line)" aria-live="polite">
+        <div class="status-line"><span class="pill">Waiting for solver</span><span style="color:#75849b;font-weight:500">Assignments appear here after optimisation.</span></div>
+      </div>
+      <div id="calendarHolder" class="timetable">
+        <div class="blank">
+          <svg width="60" height="60" viewBox="0 0 60 60" fill="none" aria-hidden="true"><rect x="6" y="7" width="48" height="46" rx="6" stroke="#8097bb" stroke-width="2"/><path d="M6 20h48M22 20v33M39 20v33M6 36h48" stroke="#a3b4ce" stroke-width="2"/><rect x="24" y="22" width="13" height="12" rx="2" fill="#b2c8fc"/></svg>
+          <strong>Your best timetable will appear here</strong>
+          A real optimisation search will assign classes, prevent overlaps, and minimise the number of rooms used.
+        </div>
+      </div>
+    </div>
+    <div id="detailsRow" class="summary-row" hidden>
+      <section class="panel"><div class="section-head"><div><h3 class="section-title">Room utilisation</h3><p class="section-sub">Booked teaching time / room's available time</p></div></div><div class="util-list" id="utilList"></div></section>
+      <section class="panel"><div class="section-head"><div><h3 class="section-title">Rooms kept free</h3><p class="section-sub">No classes assigned by this timetable</p></div></div><div class="unused-wrap"><div class="unused-pills" id="unusedList"></div><p class="hint" style="margin:14px 0 0">These rooms may still have external bookings or maintenance restrictions.</p></div></section>
+    </div>
+  </section>
+
+
+      </section>
+      <section class="view-panel" id="view-classes" data-view-panel="classes" aria-label="Manage classes" hidden>
+        <div class="content-intro"><div><span class="section-kicker">INPUT DATA / 01</span><h2>Class catalogue</h2><p>Manage students, durations, facilities and when each class can run.</p></div><div class="info-counter">Up to 24 classes</div></div>
+        <div class="generator-bar" aria-label="Generate random classes">
+          <div class="generator-intro"><span class="generator-icon" aria-hidden="true">⤨</span><div><strong>Scenario generator</strong><small>Generate example classes compatible with your current rooms.</small></div></div>
+          <div class="generator-actions"><label for="classRandomCount">Count <input id="classRandomCount" type="number" inputmode="numeric" min="1" max="24" value="14" /></label><button type="button" class="random-btn" id="randomClassesBtn">⤨ Randomise classes</button></div>
+          <p class="generator-feedback" id="randomClassFeedback" role="status" hidden></p>
+        </div>
+        <div id="recordMountClasses">  <section id="recordPanel" class="panel record-panel" aria-label="Edit room or class" hidden>
+    <div class="record-top"><div><h2 class="section-title" id="recordTitle">Edit details</h2><p id="recordSubtitle">Changes will be applied to the optimisation inputs.</p></div><button type="button" class="btn" id="closeRecordBtn">Close ✕</button></div>
+    <form id="recordForm" novalidate>
+      <div id="recordFields"></div>
+      <div id="formError" class="form-feedback" role="alert" hidden></div>
+      <div class="form-actions"><button class="btn primary" type="submit" id="saveRecordBtn">Save changes</button><button type="button" class="btn" id="cancelRecordBtn">Cancel</button><span class="edit-notice">After saving, run optimisation again to update the timetable.</span></div>
+    </form>
+  </section>
+
+</div>
+        <section class="panel manage-panel">
+          <div class="section-head"><div><h2 class="section-title">Classes to schedule</h2><p class="section-sub">Edit a class to adjust its constraints; rerun to update the timetable</p></div><div class="head-actions"><span class="count" id="classCount">0 classes</span><button type="button" class="add-btn" id="addClassBtn">+ Add class</button></div></div>
+          <div class="list" id="classList"></div>
+        </section>
+      </section>
+      <section class="view-panel" id="view-rooms" data-view-panel="rooms" aria-label="Manage rooms" hidden>
+        <div class="content-intro"><div><span class="section-kicker">INPUT DATA / 02</span><h2>Room inventory</h2><p>Set capacities, room types, equipment and unavailable periods.</p></div><div class="info-counter">Up to 12 rooms</div></div>
+        <div class="generator-bar" aria-label="Generate random rooms">
+          <div class="generator-intro"><span class="generator-icon" aria-hidden="true">⤨</span><div><strong>Scenario generator</strong><small>Generate rooms with varied sizes, types and facilities.</small></div></div>
+          <div class="generator-actions"><label for="roomRandomCount">Count <input id="roomRandomCount" type="number" inputmode="numeric" min="1" max="12" value="8" /></label><button type="button" class="random-btn" id="randomRoomsBtn">⤨ Randomise rooms</button></div>
+          <p class="generator-feedback" id="randomRoomFeedback" role="status" hidden></p>
+        </div>
+        <div id="recordMountRooms"></div>
+        <section class="panel manage-panel">
+          <div class="section-head"><div><h2 class="section-title">Available rooms</h2><p class="section-sub">Each room can be used by different classes at different times</p></div><div class="head-actions"><span class="count" id="roomCount">0 rooms</span><button type="button" class="add-btn" id="addRoomBtn">+ Add room</button></div></div>
+          <div class="list" id="roomList"></div>
+        </section>
+      </section>
+      <section class="view-panel" id="view-data" data-view-panel="data" aria-label="Scenario data and settings" hidden>
+        <div class="content-intro"><div><span class="section-kicker">WORKSPACE / DATA</span><h2>Scenario data</h2><p>Move your allocation data between browsers or edit the complete scenario.</p></div></div>
+        <div class="data-grid">
+          <section class="panel data-card">
+            <h3>Import & export</h3>
+            <p>Save your rooms, classes, facility requirements and working-day settings in a portable JSON file. Importing validates the data before applying it.</p>
+            <div class="data-actions">
+              <button type="button" class="btn primary" id="exportDataBtn">↓ &nbsp;Export JSON</button>
+              <button type="button" class="btn" id="importDataBtn">↑ &nbsp;Import JSON</button>
+              <input type="file" id="importDataInput" accept=".json,application/json" hidden aria-label="Select scenario JSON file" />
+              <button type="button" class="btn" id="resetBtn">↺ &nbsp;Reset demo</button>
+            </div>
+          </section>
+          <section class="panel data-card">
+            <h3>How it works</h3>
+            <p>Every allocation is checked against mandatory constraints. The solver searches for a schedule that uses the fewest rooms.</p>
+            <div class="data-secondary">
+              <div class="data-tip"><span class="tip-num">01</span><span><b>Edit inputs.</b> Use the Classes and Rooms tabs to add or update records.</span></div>
+              <div class="data-tip"><span class="tip-num">02</span><span><b>Run the optimiser.</b> Scheduling happens entirely in your browser.</span></div>
+              <div class="data-tip"><span class="tip-num">03</span><span><b>Inspect results.</b> See room utilisation and export the timetable to CSV.</span></div>
+            </div>
+          </section>
+        </div>
+        <div class="json-wrap">
+          <section class="panel">
+            <div class="record-top" style="align-items:center;margin:0;padding:0;border:0"><div><h3 class="section-title">Advanced JSON editor</h3><p class="section-sub">For bulk changes, custom facility names and working-day settings.</p></div><button type="button" class="btn" id="editBtn" aria-expanded="false" aria-controls="editorPanel">{ } &nbsp;Edit scenario JSON</button></div>
+  <section id="editorPanel" class="panel editor" hidden aria-label="Edit scenario JSON">
+    <h2 class="section-title">Edit the optimisation scenario</h2>
+    <p class="hint">Adjust classes, student numbers, room capacities, required facilities, allowed room types and scheduling windows. Changes run entirely in this browser. Times must align to the slot size.</p>
+    <label for="jsonInput" class="hint" style="font-weight:750">Scenario JSON</label>
+    <textarea id="jsonInput" spellcheck="false" aria-label="Scenario JSON"></textarea>
+    <div class="editor-actions">
+      <button type="button" class="btn primary" id="applyBtn">Apply changes</button>
+      <button type="button" class="btn" id="closeEditorBtn">Close editor</button>
+      <small>Up to 24 classes, 12 rooms and 32 time slots. No dependencies or server needed.</small>
+    </div>
+  </section>
+
+
+          </section>
+        </div>
+      </section>
+      <footer class="foot"><span>SCHEDULING WORKBENCH · Runs locally in your browser</span><span>Proven optimal only when the solver establishes the minimum room count</span></footer>
+    </div>
+  </main>
+</div>
+<script>
+(() => {
+  'use strict';
+  const DEMO = {
+    settings: { dayStart:'09:00', dayEnd:'17:00', slotMinutes:30 },
+    rooms: [
+      {id:'L-201',name:'Grand Lecture Hall',capacity:110,type:'Lecture',facilities:['projector','whiteboard','microphone']},
+      {id:'L-202',name:'North Lecture Hall',capacity:75,type:'Lecture',facilities:['projector','whiteboard']},
+      {id:'L-203',name:'West Lecture Hall',capacity:80,type:'Lecture',facilities:['projector','microphone']},
+      {id:'S-101',name:'Small Seminar',capacity:30,type:'Seminar',facilities:['projector','whiteboard']},
+      {id:'S-102',name:'Collaborative Room',capacity:40,type:'Seminar',facilities:['projector','whiteboard'],unavailable:[['11:00','12:00']]},
+      {id:'S-103',name:'Tutorial Room',capacity:26,type:'Seminar',facilities:['whiteboard']},
+      {id:'C-301',name:'Computer Laboratory',capacity:28,type:'Computer Lab',facilities:['computers','projector','whiteboard']},
+      {id:'B-401',name:'Science Laboratory',capacity:30,type:'Science Lab',facilities:['lab benches','projector','whiteboard']}
+    ],
+    classes: [
+      {id:'PHY101',name:'Physics Fundamentals',students:65,duration:90,roomTypes:['Lecture'],requires:['projector'],windows:[['09:00','17:00']],preferred:'09:00'},
+      {id:'ECON201',name:'Economics Lecture',students:70,duration:60,roomTypes:['Lecture'],requires:['projector'],windows:[['12:00','17:00']],preferred:'13:00'},
+      {id:'CS110',name:'Introduction to Coding',students:24,duration:90,roomTypes:['Computer Lab'],requires:['computers','projector'],windows:[['09:00','12:00']],preferred:'09:00'},
+      {id:'CS220',name:'Machine Learning Lab',students:26,duration:90,roomTypes:['Computer Lab'],requires:['computers'],windows:[['13:00','17:00']],preferred:'13:00'},
+      {id:'CHEM102',name:'Chemistry Practical',students:24,duration:120,roomTypes:['Science Lab'],requires:['lab benches'],windows:[['09:00','13:00']],preferred:'09:00'},
+      {id:'BIO204',name:'Biology Lab',students:21,duration:90,roomTypes:['Science Lab'],requires:['lab benches'],windows:[['13:00','17:00']],preferred:'13:00'},
+      {id:'DS103',name:'Data Storytelling',students:24,duration:60,roomTypes:['Seminar'],requires:['projector'],windows:[['09:00','17:00']],preferred:'11:00'},
+      {id:'MATH105',name:'Mathematics Tutorial',students:28,duration:60,roomTypes:['Seminar'],requires:['whiteboard'],windows:[['13:00','14:00']],preferred:'13:00'},
+      {id:'POL301',name:'Policy Workshop',students:35,duration:90,roomTypes:['Seminar'],requires:['whiteboard'],windows:[['09:00','12:00']],preferred:'09:00'},
+      {id:'STAT210',name:'Statistical Methods',students:28,duration:90,roomTypes:['Seminar','Lecture'],requires:['whiteboard'],windows:[['09:00','17:00']],preferred:'10:00'},
+      {id:'ENG401',name:'Engineering Showcase',students:80,duration:60,roomTypes:['Lecture'],requires:['projector'],windows:[['13:00','17:00']],preferred:'14:00'},
+      {id:'HIST209',name:'History & Debate',students:18,duration:60,roomTypes:['Seminar'],requires:['projector'],windows:[['12:00','17:00']],preferred:'14:00'},
+      {id:'LAW120',name:'Legal Discussion',students:26,duration:60,roomTypes:['Seminar'],requires:['whiteboard'],windows:[['09:00','17:00']],preferred:'15:00'},
+      {id:'FIN300',name:'Financial Ethics',students:55,duration:60,roomTypes:['Lecture'],requires:['whiteboard'],windows:[['09:00','12:00']],preferred:'10:00'}
+    ]
+  };
+  const clone = obj => JSON.parse(JSON.stringify(obj));
+  let scenario=clone(DEMO), prepared=null, solution=null, searching=false, currentSearch=null, showAllRooms=false;
+  const $=id=>document.getElementById(id);
+  const VIEW_INFO={
+    timetable:['Timetable','Timetable','Optimise room use. Build a conflict-free teaching schedule.'],
+    classes:['Classes','Class management','Edit class sizes, required equipment and scheduling windows.'],
+    rooms:['Rooms','Room management','Set room capacities, types, facilities and availability.'],
+    data:['Data & settings','Scenario settings','Import, export or edit the underlying scheduling scenario.']
+  };
+  function activateView(view){
+    if(!VIEW_INFO[view])return;
+    document.querySelectorAll('.view-panel').forEach(panel=>{panel.hidden=panel.dataset.viewPanel!==view;});
+    document.querySelectorAll('.nav-item[data-view]').forEach(btn=>{
+      const active=btn.dataset.view===view;
+      btn.classList.toggle('is-active',active);
+      if(active)btn.setAttribute('aria-current','page');else btn.removeAttribute('aria-current');
+    });
+    $('viewBreadcrumb').textContent=VIEW_INFO[view][0];
+    $('viewHeading').textContent=VIEW_INFO[view][1];
+    $('viewDescription').textContent=VIEW_INFO[view][2];
+    // Navigation is an in-page view switch; keep focus on the button for keyboard users.
+  }
+  document.querySelectorAll('button.nav-item[data-view]').forEach(button=>{
+    button.addEventListener('click',()=>activateView(button.dataset.view));
+  });
+  const esc=x=>String(x).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const minuteText=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+  const minutes=str=>{if(typeof str!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(str))throw new Error('Invalid time "'+String(str)+'". Use HH:MM, e.g. 13:00.'); const [h,m]=str.split(':').map(Number);return h*60+m;};
+  const mask=(start,length)=>(((2**length)-1)*(2**start))>>>0;
+  const popcount=x=>{let n=0;while(x){x&=x-1;n++;}return n;};
+  const fmtDuration=m=>m<60?m+' min':(m%60?`${Math.floor(m/60)}h ${m%60}m`:`${m/60}h`);
+  const chip=v=>`<span class="chip">${esc(v)}</span>`;
+  const rangeLabel=w=>!w||!w.length?'Anytime':w.map(a=>a[0]+'–'+a[1]).join(', ');
+  const safeArray=(v,label)=>{if(!Array.isArray(v))throw new Error(label+' must be an array.');return v;};
+  function showError(msg){$('errorBox').textContent=msg;$('errorBox').hidden=false;}
+  function clearError(){$('errorBox').hidden=true;$('errorBox').textContent='';}
+  function assert(cond,msg){if(!cond)throw new Error(msg);}
+  function normalisedId(id,label){assert(typeof id==='string'&&id.trim().length>0&&id.length<=50,label+' needs a non-empty ID (max 50 characters).');return id;}
+  function slotBounds(pair,label,settings){
+    assert(Array.isArray(pair)&&pair.length===2,label+' must be ["HH:MM","HH:MM"].');
+    const a=minutes(pair[0]),b=minutes(pair[1]);
+    assert(a<b&&a>=settings.dayStartMinute&&b<=settings.dayEndMinute,label+' must lie within the working day and end after it starts.');
+    assert((a-settings.dayStartMinute)%settings.slotMinutes===0&&(b-settings.dayStartMinute)%settings.slotMinutes===0,label+' must align with '+settings.slotMinutes+'-minute slots.');
+    return [(a-settings.dayStartMinute)/settings.slotMinutes,(b-settings.dayStartMinute)/settings.slotMinutes];
+  }
+  function parseScenario(data,requireEligible=true){
+    assert(data&&typeof data==='object'&&!Array.isArray(data),'Scenario must be a JSON object.');
+    const st=data.settings||{};
+    const start=minutes(st.dayStart),end=minutes(st.dayEnd),step=Number(st.slotMinutes);
+    assert(Number.isInteger(step)&&step>=15&&step<=120,'slotMinutes must be an integer from 15 to 120.');
+    assert(start<end&&(end-start)%step===0,'The working day must be divisible by slotMinutes.');
+    const slots=(end-start)/step;
+    assert(slots>=2&&slots<=32,'Use between 2 and 32 time slots (adjust day length or slotMinutes).');
+    const settings={dayStartMinute:start,dayEndMinute:end,slotMinutes:step,slots};
+    const inputRooms=safeArray(data.rooms,'rooms'),inputClasses=safeArray(data.classes,'classes');
+    assert(inputRooms.length>0&&inputRooms.length<=12,'Provide between 1 and 12 rooms.');
+    assert(inputClasses.length>0&&inputClasses.length<=24,'Provide between 1 and 24 classes.');
+    const roomIds=new Set(),classIds=new Set();
+    const rooms=inputRooms.map((r,i)=>{
+      assert(r&&typeof r==='object','Room '+(i+1)+' must be an object.');
+      const id=normalisedId(r.id,'Room '+(i+1));assert(!roomIds.has(id),'Duplicate room ID: '+id);roomIds.add(id);
+      const capacity=Number(r.capacity);assert(Number.isInteger(capacity)&&capacity>0,'Room '+id+' needs a positive integer capacity.');
+      assert(typeof r.type==='string'&&r.type.trim(),'Room '+id+' needs a room type.');
+      const facilities=safeArray(r.facilities||[],`Facilities of room ${id}`);
+      assert(facilities.every(v=>typeof v==='string'),`Facilities of ${id} must be strings.`);
+      const unavailable=safeArray(r.unavailable||[],`Unavailable windows of ${id}`);
+      let unavailableMask=0;
+      for(const pair of unavailable){const [a,b]=slotBounds(pair,`Unavailable time in room ${id}`,settings);unavailableMask=(unavailableMask|mask(a,b-a))>>>0;}
+      return {...r,id,name:String(r.name||id),capacity,facilities,type:r.type,unavailableMask};
+    });
+    const classes=inputClasses.map((c,i)=>{
+      assert(c&&typeof c==='object','Class '+(i+1)+' must be an object.');
+      const id=normalisedId(c.id,'Class '+(i+1));assert(!classIds.has(id),'Duplicate class ID: '+id);classIds.add(id);
+      const students=Number(c.students),duration=Number(c.duration);
+      assert(Number.isInteger(students)&&students>0,`Class ${id}: students must be a positive integer.`);
+      assert(Number.isInteger(duration)&&duration>0&&duration%step===0,`Class ${id}: duration must be a positive multiple of ${step} minutes.`);
+      assert(duration<=end-start,`Class ${id} exceeds working-day length.`);
+      const requires=safeArray(c.requires||[],`Required facilities of ${id}`),roomTypes=safeArray(c.roomTypes||[],`Room types of ${id}`);
+      assert([...requires,...roomTypes].every(v=>typeof v==='string'),`Class ${id}: facilities and room types must be strings.`);
+      const windows=safeArray(c.windows||[[st.dayStart,st.dayEnd]],`Time windows of ${id}`);
+      assert(windows.length>0,`Class ${id} must have at least one time window.`);
+      const winSlots=windows.map(w=>slotBounds(w,`Time window of ${id}`,settings));
+      const preferred=c.preferred==null?null:minutes(c.preferred);
+      if(preferred!==null){assert(preferred>=start&&preferred<end&&((preferred-start)%step===0),`Class ${id}: preferred start must be within day and align to slots.`);}
+      return {...c,id,name:String(c.name||id),students,duration,requires,roomTypes,winSlots,preferred,span:duration/step};
+    });
+    const options=classes.map(c=>{
+      let arr=[];
+      for(let ri=0;ri<rooms.length;ri++){
+        const r=rooms[ri];
+        if(c.students>r.capacity)continue;
+        if(c.roomTypes.length&&!c.roomTypes.includes(r.type))continue;
+        if(!c.requires.every(f=>r.facilities.includes(f)))continue;
+        for(let s=0;s<=slots-c.span;s++){
+          if(!c.winSlots.some(([a,b])=>s>=a&&s+c.span<=b))continue;
+          const m=mask(s,c.span);if((m&r.unavailableMask)!==0)continue;
+          const absTime=start+s*step;
+          arr.push({ri,s,mask:m,seatWaste:r.capacity-c.students,preferredPenalty:c.preferred===null?0:Math.abs(absTime-c.preferred)/step});
+        }
+      }
+      return arr;
+    });
+    for(let i=0;i<classes.length;i++)if(requireEligible)assert(options[i].length>0,`Class ${classes[i].id} (${classes[i].name}) has no eligible room / start-time combination. Check capacity, facilities, room type and timing.`);
+    const roomSets=options.map(opts=>opts.reduce((acc,o)=>acc|(1<<o.ri),0));
+    const disjointLower=disjointRoomLowerBound(roomSets,rooms.length);
+    const totalSlots=classes.reduce((s,c)=>s+c.span,0);
+    const availableSlots=rooms.map(r=>slots-popcount(r.unavailableMask)).sort((a,b)=>b-a);
+    let slotLower=0,covered=0;while(covered<totalSlots&&slotLower<availableSlots.length)covered+=availableSlots[slotLower++];
+    const lowerBound=Math.max(1,disjointLower,slotLower);
+    const roomCoverage=rooms.map((_,i)=>roomSets.filter(v=>v&(1<<i)).length);
+    return {settings,rooms,classes,options,roomSets,lowerBound,roomCoverage};
+  }
+  // Exact lower bound: largest collection of classes whose eligible room sets are pairwise disjoint.
+  // DP over room bitsets; this proves that at least K different rooms must be used.
+  function disjointRoomLowerBound(sets,nRooms){
+    const size=1<<nRooms;let dp=new Int8Array(size);dp.fill(-1);dp[0]=0;
+    const sorted=[...sets].sort((a,b)=>popcount(a)-popcount(b));
+    for(const rm of sorted){const next=new Int8Array(dp);for(let used=0;used<size;used++)if(dp[used]>=0&&!(used&rm)){const k=used|rm;next[k]=Math.max(next[k],dp[used]+1);}dp=next;}
+    let best=0;for(const v of dp)best=Math.max(best,v);return best;
+  }
+  function updateInfo(){
+    $('dayInfo').textContent=`${scenario.settings.dayStart}–${scenario.settings.dayEnd} · ${scenario.settings.slotMinutes}-minute slots`;
+    $('classCount').textContent=`${scenario.classes.length} classes`;$('roomCount').textContent=`${scenario.rooms.length} rooms`;
+    $('navClassesCount').textContent=String(scenario.classes.length);
+    $('navRoomsCount').textContent=String(scenario.rooms.length);
+    $('scenarioSummary').textContent=`${scenario.classes.length} classes · ${scenario.rooms.length} rooms`;
+
+    $('classList').innerHTML=scenario.classes.map((c,i)=>{
+      const detail=(c.roomTypes||[]).join(' / ')||'Any room type';
+      const chips=[...(c.requires||[]).map(chip)];
+      return `<div class="entry"><div class="icon">${esc(c.id.replace(/[^a-zA-Z0-9]/g,'').slice(0,2))}</div><div><div class="name">${esc(c.name)}</div><div class="detail">${esc(detail)} · ${fmtDuration(c.duration)} · ${esc(rangeLabel(c.windows))}</div><div class="chips">${chips.join('')||'<span class="chip soft">No required equipment</span>'}</div></div><div class="right"><span>${esc(c.students)} students</span><div class="entry-controls"><button type="button" class="mini-btn" data-action="edit" data-kind="class" data-index="${i}" aria-label="Edit class ${esc(c.id)}">Edit</button><button type="button" class="mini-btn danger" data-action="delete" data-kind="class" data-index="${i}" aria-label="Delete class ${esc(c.id)}">Delete</button></div></div></div>`;
+    }).join('');
+    $('roomList').innerHTML=scenario.rooms.map((r,i)=>{
+      const facilityChips=(r.facilities||[]).map(chip).join('');
+      return `<div class="entry"><div class="icon">${esc(r.id.slice(0,2))}</div><div><div class="name">${esc(r.name)}</div><div class="detail">${esc(r.id)} · ${esc(r.type)}${r.unavailable?.length?' · limited availability':''}</div><div class="chips">${facilityChips}</div></div><div class="right"><span>${esc(r.capacity)} seats</span><div class="entry-controls"><button type="button" class="mini-btn" data-action="edit" data-kind="room" data-index="${i}" aria-label="Edit room ${esc(r.id)}">Edit</button><button type="button" class="mini-btn danger" data-action="delete" data-kind="room" data-index="${i}" aria-label="Delete room ${esc(r.id)}">Delete</button></div></div></div>`;
+    }).join('');
+  }
+  function resetOutput(){
+    solution=null;prepared=null;showAllRooms=false;
+    setWorkbenchStatus('Changes ready','');
+    $('classesValue').textContent='—';$('usedValue').textContent='—';$('emptyValue').textContent='—';
+    $('classesNote').textContent='Ready for a new solve';$('usedNote').textContent='Minimise room footprint';$('emptyNote').textContent='Primary objective';
+    $('statusValue').textContent='Ready';$('statusNote').textContent='Branch-and-bound';
+    $('resultMessage').textContent='Run the optimiser to create a conflict-free timetable.';
+    $('resultControls').hidden=true;$('detailsRow').hidden=true;
+    $('calendarHolder').innerHTML=`<div class="blank"><strong>Your best timetable will appear here</strong>Press “Run optimisation” to assign all classes and consolidate room use.</div>`;
+    $('statusStrip').innerHTML='<div class="status-line"><span class="pill">Waiting for solver</span><span style="color:#75849b;font-weight:500">Assignments appear here after optimisation.</span></div>';
+  }
+  function setWorkbenchStatus(label,state){
+    const badge=$('workStatus');
+    badge.className='work-status'+(state?' '+state:'');
+    $('workStatusText').textContent=label;
+  }
+  function setSearching(value){
+    searching=value;$('runBtn').disabled=value;$('editBtn').disabled=value;$('resetBtn').disabled=value;
+    $('applyBtn').disabled=value;$('cancelBtn').hidden=!value;
+    for(const id of ['addClassBtn','addRoomBtn','exportDataBtn','importDataBtn','randomClassesBtn','randomRoomsBtn','classRandomCount','roomRandomCount'])$(id).disabled=value;
+    document.querySelectorAll('.entry-controls button').forEach(button=>button.disabled=value);
+    if(value)closeRecordPanel();
+    $('runBtn').textContent=value?'Optimising…':'▶  Run optimisation';
+  }
+  const PALETTE=[
+    {bg:'#e1ebff',line:'#4b6dd4',text:'#203e88'},
+    {bg:'#e7e4fb',line:'#7962ce',text:'#4c398c'},
+    {bg:'#fef0df',line:'#d9943f',text:'#8b551c'},
+    {bg:'#d9f4ee',line:'#29977d',text:'#14634f'},
+    {bg:'#fce5e7',line:'#d67583',text:'#823442'},
+    {bg:'#e3f1f9',line:'#4593c7',text:'#215d88'}
+  ];
+  function renderSolution(sol,p,metadata){
+    const usedRooms=new Set(sol.assignments.map(a=>a.ri));
+    $('classesValue').textContent=String(p.classes.length);
+    $('usedValue').textContent=String(usedRooms.size);
+    $('emptyValue').textContent=String(p.rooms.length-usedRooms.size);
+    $('classesNote').textContent='All classes allocated';
+    $('usedNote').textContent='of '+p.rooms.length+' rooms available';
+    $('emptyNote').textContent=Math.round(100*(p.rooms.length-usedRooms.size)/p.rooms.length)+'% unassigned';
+    const s=metadata.status;
+    $('statusValue').textContent=s==='optimal'?'Optimal':s==='partial'?'Best found':'Feasible';
+    $('statusNote').textContent=`${metadata.nodes.toLocaleString()} search nodes · ${(metadata.elapsed/1000).toFixed(2)}s`;
+    $('resultMessage').textContent=s==='optimal'?
+      `Provably minimum rooms: ${usedRooms.size}. A lower bound of ${p.lowerBound} rooms is satisfied or all better solutions were excluded.`:
+      `Feasible allocation found; minimum-room optimality not proven within search limit. ${metadata.nodes.toLocaleString()} nodes explored.`;
+    $('statusStrip').innerHTML=`<div class="status-line"><span class="pill ${s==='optimal'?'good':'warn'}">${s==='optimal'?'✓ Proven minimum room count':'⏱ Best feasible solution'}</span><span style="color:#63758f;font-weight:550">All ${p.classes.length} classes assigned · No overlap · All hard constraints satisfied · ${metadata.nodes.toLocaleString()} nodes</span></div>`;
+    $('resultControls').hidden=false;$('detailsRow').hidden=false;
+    setWorkbenchStatus(s==='optimal'?'Optimal schedule':'Feasible schedule','ready');
+    renderCalendar(p,sol);renderUsage(p,sol);
+  }
+  function renderCalendar(p,sol){
+    const usedRooms=new Set(sol.assignments.map(a=>a.ri));
+    const roomIndices=p.rooms.map((_,i)=>i).filter(ri=>showAllRooms||usedRooms.has(ri));
+    $('usedOnlyBtn').setAttribute('aria-pressed',String(!showAllRooms));$('allRoomsBtn').setAttribute('aria-pressed',String(showAllRooms));
+    const st=p.settings,slots=st.slots,height=slots*46;
+    let html=`<div class="calendar" style="grid-template-columns:76px repeat(${roomIndices.length},minmax(205px,1fr));--row-height:46px">`;
+    html+=`<div class="time-corner" style="grid-column:1;grid-row:1">TIME</div>`;
+    for(let i=0;i<roomIndices.length;i++){
+      const r=p.rooms[roomIndices[i]];
+      html+=`<div class="room-head" style="grid-column:${i+2};grid-row:1"><div class="room-name">${esc(r.id)} · ${esc(r.name)}</div><div class="room-desc">${esc(r.type)} · ${r.capacity} seats</div></div>`;
+    }
+    html+=`<div class="time-axis" style="grid-column:1;grid-row:2;height:${height}px">`;
+    for(let i=0;i<=slots;i++)html+=`<span class="time-label" style="top:${i*46+(i===0?9:i===slots?-6:0)}px">${minuteText(st.dayStartMinute+i*st.slotMinutes)}</span>`;
+    html+='</div>';
+    const byRoom=new Map();sol.assignments.forEach((a,ci)=>{if(!byRoom.has(a.ri))byRoom.set(a.ri,[]);byRoom.get(a.ri).push({a,c:p.classes[ci],ci});});
+    roomIndices.forEach((ri,i)=>{
+      let track=`<div class="room-track ${usedRooms.has(ri)?'':'empty'}" style="grid-column:${i+2};grid-row:2;height:${height}px">`;
+      for(const {a,c,ci} of byRoom.get(ri)||[]){
+        const palette=PALETTE[ci%PALETTE.length];
+        const start=st.dayStartMinute+a.s*st.slotMinutes,end=start+c.duration;
+        const title=`${c.name} (${c.id}) | ${minuteText(start)}–${minuteText(end)} | ${c.students} students | ${c.requires.join(', ')||'no facility requirements'}`;
+        track+=`<div class="class-block" tabindex="0" aria-label="${esc(title)}" title="${esc(title)}" style="top:${a.s*46+3}px;height:${c.span*46-6}px;--block-bg:${palette.bg};--block-line:${palette.line};--block-text:${palette.text}"><div class="block-title">${esc(c.name)}</div><div class="block-time">${minuteText(start)}–${minuteText(end)} · ${c.students} students</div></div>`;
+      }
+      if(!usedRooms.has(ri))track+='<div class="empty-label">✓ No classes allocated</div>';
+      track+='</div>';html+=track;
+    });
+    html+='</div>';$('calendarHolder').innerHTML=html;
+  }
+  function renderUsage(p,sol){
+    const counts=p.rooms.map(()=>0),byRoom=p.rooms.map(()=>0);
+    sol.assignments.forEach((a,i)=>{counts[a.ri]+=p.classes[i].span;byRoom[a.ri]++;});
+    const indices=p.rooms.map((_,i)=>i).sort((a,b)=>counts[b]-counts[a]);
+    $('utilList').innerHTML=indices.map(ri=>{
+      const r=p.rooms[ri],avail=p.settings.slots-popcount(r.unavailableMask),percent=avail?100*counts[ri]/avail:0;
+      return `<div class="util-item"><span class="util-label" title="${esc(r.name)}">${esc(r.id)}</span><div class="bar ${counts[ri]?'':'green'}"><span style="width:${Math.min(percent,100).toFixed(1)}%"></span></div><span class="util-percent">${percent.toFixed(0)}%</span></div>`;
+    }).join('');
+    $('unusedList').innerHTML=indices.filter(ri=>!counts[ri]).map(ri=>`<span class="unused-pill">✓ ${esc(p.rooms[ri].id)}</span>`).join('')||'<span class="hint">Every room is needed for this scenario.</span>';
+  }
+  function exportCSV(){
+    if(!solution||!prepared)return;
+    const st=prepared.settings;
+    const rows=[['Class ID','Class','Students','Room ID','Room','Room capacity','Room type','Start','End','Duration (minutes)','Mandatory facilities']];
+    solution.assignments.forEach((a,i)=>{
+      const c=prepared.classes[i],r=prepared.rooms[a.ri],start=st.dayStartMinute+a.s*st.slotMinutes;
+      rows.push([c.id,c.name,c.students,r.id,r.name,r.capacity,r.type,minuteText(start),minuteText(start+c.duration),c.duration,c.requires.join('; ')]);
+    });
+    rows.sort((a,b)=>a===rows[0]?-1:b===rows[0]?1:a[7].localeCompare(b[7]));
+    const csv='\ufeff'+rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+    const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+    const link=document.createElement('a');link.href=url;link.download='scheduling_workbench_timetable.csv';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  // Constraint-programming branch and bound. Searches all feasible assignments unless
+  // the mathematical lower bound is reached or the explicit node/time guard is hit.
+  // This is a real exact minimum-room solver, not a simulated result or fixed timetable.
+  function createSearch(p){
+    const {classes,rooms,options,roomCoverage,lowerBound}=p;
+    const roomOcc=rooms.map(r=>r.unavailableMask);
+    const roomAssignments=new Array(rooms.length).fill(0);
+    const assignment=new Array(classes.length).fill(null);
+    const placed=new Array(classes.length).fill(false);
+    const maxNodes=600000,timeLimitMs=6000,start=performance.now();
+    const state={nodes:0,best:null,bestRooms:Infinity,exhausted:false,timedOut:false,lowerBound,finished:false,start,stop:false};
+    const count=classes.length;
+    function* dfs(depth,usedCount){
+      if(state.stop||state.timedOut||state.exhausted)return;
+      state.nodes++;
+      if(state.nodes%160===0){yield;
+        if(performance.now()-start>=timeLimitMs||state.nodes>=maxNodes){state.timedOut=true;return;}
+      }
+      if(state.bestRooms===lowerBound){state.finished=true;return;}
+      if(usedCount>=state.bestRooms)return; // Only seek STRICTLY fewer rooms: tie-break decisions are heuristic.
+      if(depth===count){
+        state.bestRooms=usedCount;
+        state.best={assignments:assignment.map(a=>({ri:a.ri,s:a.s,mask:a.mask})),used:usedCount};
+        if(usedCount===lowerBound)state.finished=true;
+        return;
+      }
+      let bestClass=-1,bestOpts=null,bestKey=Infinity;
+      for(let ci=0;ci<count;ci++){
+        if(placed[ci])continue;
+        const valid=[],roomFlag=new Set();
+        for(const o of options[ci]){
+          if(roomOcc[o.ri]&o.mask)continue;
+          const nc=usedCount+(roomAssignments[o.ri]===0?1:0);
+          if(nc>=state.bestRooms)continue;
+          valid.push(o);roomFlag.add(o.ri);
+        }
+        if(valid.length===0)return;
+        // Most constrained class first, then fewest valid starts; favour longer classes.
+        const key=roomFlag.size*100000+valid.length*20-classes[ci].span;
+        if(key<bestKey){bestClass=ci;bestOpts=valid;bestKey=key;}
+      }
+      bestOpts.sort((a,b)=>{
+        const score=o=> (roomAssignments[o.ri]?0:100000)+o.preferredPenalty*35+o.seatWaste*1.5-(roomCoverage[o.ri]*3)+(o.s*.001);
+        return score(a)-score(b);
+      });
+      placed[bestClass]=true;
+      for(const o of bestOpts){
+        if(state.stop||state.finished||state.timedOut)break;
+        const wasRoomFree=roomAssignments[o.ri]===0;
+        const newUsed=usedCount+(wasRoomFree?1:0);
+        if(newUsed>=state.bestRooms)continue;
+        const prevOcc=roomOcc[o.ri];roomOcc[o.ri]=(prevOcc|o.mask)>>>0;
+        roomAssignments[o.ri]++;assignment[bestClass]=o;
+        yield* dfs(depth+1,newUsed);
+        assignment[bestClass]=null;roomAssignments[o.ri]--;roomOcc[o.ri]=prevOcc;
+      }
+      placed[bestClass]=false;
+    }
+    const iterator=dfs(0,0);
+    return {state,iterator,timeLimitMs,maxNodes};
+  }
+  function finishSearch(search,wasCancelled){
+    if(search!==currentSearch)return;
+    const s=search.state;
+    const elapsed=performance.now()-s.start;
+    setSearching(false);currentSearch=null;
+    if(s.best){
+      solution=s.best;
+      const optimal=(s.bestRooms===s.lowerBound)||(!s.timedOut&&!wasCancelled&&s.exhausted);
+      renderSolution(solution,prepared,{status:optimal?'optimal':'partial',nodes:s.nodes,elapsed});
+      if(wasCancelled)$('resultMessage').textContent+=' Search stopped by user.';
+    }else{
+      setWorkbenchStatus(s.timedOut||wasCancelled?'Search stopped':'No feasible schedule','');
+      $('statusValue').textContent=s.timedOut||wasCancelled?'Unresolved':'Infeasible';
+      $('statusNote').textContent=`${s.nodes.toLocaleString()} nodes · ${(elapsed/1000).toFixed(2)}s`;
+      $('resultMessage').textContent=s.timedOut||wasCancelled?'No feasible assignment found before the search stopped. The model may still be feasible.':'No schedule satisfies every hard constraint.';
+      $('statusStrip').innerHTML=`<div class="status-line"><span class="pill warn">${s.timedOut||wasCancelled?'No solution found yet':'Model proven infeasible'}</span><span>Try increasing room capacity, broadening time windows or relaxing mandatory requirements.</span></div>`;
+    }
+  }
+  function advanceSearch(search){
+    if(search!==currentSearch)return;
+    const s=search.state;
+    if(s.stop){finishSearch(search,true);return;}
+    const start=performance.now();let result;
+    do {
+      result=search.iterator.next();
+      if(result.done){s.exhausted=true;break;}
+      if(s.finished||s.timedOut)break;
+    }while(performance.now()-start<14);
+    if(s.best){
+      const used=s.bestRooms;
+      $('classesValue').textContent=String(prepared.classes.length);$('usedValue').textContent=String(used);
+      $('emptyValue').textContent=String(prepared.rooms.length-used);
+    }
+    $('statusNote').textContent=`${s.nodes.toLocaleString()} nodes explored`;
+    $('statusStrip').innerHTML=`<div class="status-line"><span class="pill running">Searching</span><span style="color:#5b6d8c;font-weight:550">${s.nodes.toLocaleString()} nodes · theoretical minimum ${s.lowerBound} rooms${s.best?' · best '+s.bestRooms+' rooms':' · looking for a feasible schedule'}</span></div>`;
+    if(result?.done||s.finished||s.timedOut){finishSearch(search,false);return;}
+    if(performance.now()-s.start>=search.timeLimitMs||s.nodes>=search.maxNodes){s.timedOut=true;finishSearch(search,false);return;}
+    setTimeout(()=>advanceSearch(search),0);
+  }
+  function run(){
+    if(searching)return;
+    activateView('timetable');
+    clearError();
+    try{prepared=parseScenario(scenario);}catch(e){showError(e.message);return;}
+    solution=null;$('resultControls').hidden=true;$('detailsRow').hidden=true;
+    $('classesValue').textContent='0';$('usedValue').textContent='—';$('emptyValue').textContent='—';
+    $('statusValue').textContent='Running';$('statusNote').textContent='Preparing search…';
+    setWorkbenchStatus('Optimising…','running');
+    $('resultMessage').textContent='Solving capacity, facilities, room compatibility and non-overlapping start times…';
+    $('calendarHolder').innerHTML='<div class="blank"><strong>Solving the class allocation problem…</strong>Searching feasible schedules and pruning solutions that use too many rooms.</div>';
+    setSearching(true);currentSearch=createSearch(prepared);
+    setTimeout(()=>advanceSearch(currentSearch),35);
+  }
+  function setEditor(open){
+    if(open)activateView('data');
+    $('editorPanel').hidden=!open;$('editBtn').setAttribute('aria-expanded',String(open));
+    if(open){$('jsonInput').value=JSON.stringify(scenario,null,2);$('jsonInput').focus();}
+  }
+  // Front-end record editor — all saved edits feed into the same offline optimiser.
+  const STORE_KEY='scheduling-workbench-scenario-v1';
+  let activeRecord=null;
+  function saveLocal(){try{localStorage.setItem(STORE_KEY,JSON.stringify(scenario));}catch(_){} }
+  function forgetLocal(){try{localStorage.removeItem(STORE_KEY);}catch(_){} }
+  function uniqueId(base,kind){const items=kind==='room'?scenario.rooms:scenario.classes;let id=base,n=2;while(items.some(v=>v.id===id))id=base+'-'+n++;return id;}
+  function selectedValues(field){return [...$('recordForm').querySelectorAll(`input[name="${field}"]:checked`)].map(el=>el.value);}
+  function commaTags(text){return String(text||'').split(',').map(x=>x.trim()).filter(Boolean);}
+  function distinct(items){return [...new Set(items.map(v=>v.trim()).filter(Boolean))];}
+  function facilitiesCatalog(extra=[]){return distinct(['projector','whiteboard','computers','lab benches','microphone',...scenario.rooms.flatMap(r=>r.facilities||[]),...scenario.classes.flatMap(c=>c.requires||[]),...extra]);}
+  function typesCatalog(extra=[]){return distinct(['Lecture','Seminar','Computer Lab','Science Lab',...scenario.rooms.map(r=>r.type),...scenario.classes.flatMap(c=>c.roomTypes||[]),...extra]);}
+  function checks(field,catalog,values){return `<div class="check-grid">${catalog.map(v=>`<label class="check-chip"><input type="checkbox" name="${field}" value="${esc(v)}" ${values.includes(v)?'checked':''} /><span>${esc(v)}</span></label>`).join('')}</div>`;}
+  const timeStep=()=>Number(scenario.settings.slotMinutes)*60;
+  function timeField(name,label,value){return `<label class="field"><span>${label}</span><input name="${name}" type="time" step="${timeStep()}" value="${esc(value||'')}" required /></label>`;}
+  function windowRowHtml(prefix,pair){const a=pair?.[0]||scenario.settings.dayStart,b=pair?.[1]||scenario.settings.dayEnd;return `<div class="window-row">${timeField('windowStart','From',a)}${timeField('windowEnd','Until',b)}<button type="button" class="mini-btn danger" data-window-remove="${prefix}" aria-label="Remove time window">Remove</button></div>`;}
+  function addWindowRow(prefix,pair){const target=$(prefix==='room'?'roomUnavailRows':'classWinRows');target.insertAdjacentHTML('beforeend',windowRowHtml(prefix,pair));}
+  function readWindows(prefix){const target=$(prefix==='room'?'roomUnavailRows':'classWinRows');return [...target.querySelectorAll('.window-row')].map(row=>[row.querySelector('input[name="windowStart"]').value,row.querySelector('input[name="windowEnd"]').value]);}
+  function inferTiming(c){
+    const w=c.windows?.length?c.windows:[[scenario.settings.dayStart,scenario.settings.dayEnd]];
+    if(w.length!==1)return 'custom';
+    const [a,b]=w[0];
+    if(a===scenario.settings.dayStart&&b===scenario.settings.dayEnd)return 'any';
+    if(a===scenario.settings.dayStart&&b==='12:00')return 'am';
+    if(a==='12:00'&&b===scenario.settings.dayEnd)return 'pm';
+    if(minutes(b)-minutes(a)===Number(c.duration))return 'fixed';
+    return 'custom';
+  }
+  function renderRecordFields(kind,record){
+    if(kind==='room'){
+      const types=typesCatalog([record.type]);
+      $('recordFields').innerHTML=`
+        <div class="field-grid">
+          <label class="field">Room ID <input name="id" required maxlength="50" value="${esc(record.id)}" placeholder="e.g. S-104" /></label>
+          <label class="field">Room name <input name="name" required maxlength="120" value="${esc(record.name)}" placeholder="e.g. Seminar Room 4" /></label>
+          <label class="field">Capacity (seats) <input name="capacity" required type="number" min="1" max="100000" step="1" value="${esc(record.capacity)}" /></label>
+          <label class="field">Room type <input name="type" required list="knownTypes" maxlength="80" value="${esc(record.type)}" placeholder="e.g. Seminar" /><datalist id="knownTypes">${types.map(t=>`<option value="${esc(t)}"></option>`).join('')}</datalist></label>
+        </div>
+        <div class="form-group"><h3>Available facilities</h3><p>Tick all equipment present in the room.</p>${checks('facility',facilitiesCatalog(record.facilities),record.facilities||[])}<label class="minor-label" for="extraFacilities">Additional facilities (comma-separated)</label><input id="extraFacilities" class="inline-input" name="extraFacilities" placeholder="e.g. interactive display, video conferencing" /></div>
+        <div class="form-group"><h3>Unavailable periods</h3><p>Optional: blocks for maintenance or other bookings. Classes cannot use these times.</p><div id="roomUnavailRows" class="window-rows"></div><button type="button" class="btn" data-window-add="room" style="margin-top:9px">+ Add unavailable period</button></div>`;
+      (record.unavailable||[]).forEach(w=>addWindowRow('room',w));
+    }else{
+      const allTypes=typesCatalog(record.roomTypes||[]);
+      const mode=inferTiming(record);
+      $('recordFields').innerHTML=`
+        <div class="field-grid">
+          <label class="field">Class ID <input name="id" required maxlength="50" value="${esc(record.id)}" placeholder="e.g. ENG101" /></label>
+          <label class="field">Class name <input name="name" required maxlength="120" value="${esc(record.name)}" placeholder="e.g. Engineering Lecture" /></label>
+          <label class="field">Number of students <input name="students" required type="number" min="1" max="100000" step="1" value="${esc(record.students)}" /></label>
+          <label class="field">Duration (minutes)<input name="duration" required type="number" min="${scenario.settings.slotMinutes}" step="${scenario.settings.slotMinutes}" value="${esc(record.duration)}" /><span class="explain">Must be a multiple of ${scenario.settings.slotMinutes} minutes.</span></label>
+        </div>
+        <div class="form-group"><h3>Required facilities</h3><p>All selected facilities are mandatory; the solver will only use rooms containing them.</p>${checks('required',facilitiesCatalog(record.requires),record.requires||[])}<label class="minor-label" for="extraRequired">Additional required facilities (comma-separated)</label><input id="extraRequired" class="inline-input" name="extraRequired" placeholder="e.g. camera, hearing loop" /></div>
+        <div class="form-group"><h3>Acceptable room types</h3><p>Choose one or several types. Leave all unchecked to allow any room type.</p>${checks('allowedType',allTypes,record.roomTypes||[])}<label class="minor-label" for="extraTypes">Additional allowed room types (comma-separated)</label><input id="extraTypes" class="inline-input" name="extraTypes" placeholder="e.g. Hybrid Studio" /></div>
+        <div class="form-group"><h3>Allowed time</h3><p>Choose a restriction. For a fixed start, the end time is calculated from class duration.</p>
+          <label class="field" style="max-width:360px"><span>Scheduling requirement</span><select name="timeMode" id="timeMode">
+            <option value="any" ${mode==='any'?'selected':''}>Anytime (${esc(scenario.settings.dayStart)}–${esc(scenario.settings.dayEnd)})</option>
+            <option value="am" ${mode==='am'?'selected':''}>Morning only (before 12:00)</option>
+            <option value="pm" ${mode==='pm'?'selected':''}>Afternoon only (12:00 onward)</option>
+            <option value="fixed" ${mode==='fixed'?'selected':''}>Fixed start time</option>
+            <option value="custom" ${mode==='custom'?'selected':''}>Custom allowed window(s)</option>
+          </select></label>
+          <div id="fixedTimeArea" class="time-detail" hidden>${timeField('fixedStart','Class starts at',record.windows?.[0]?.[0]||scenario.settings.dayStart)}</div>
+          <div id="customTimeArea" class="time-detail" hidden><div id="classWinRows" class="window-rows"></div><button type="button" class="btn" data-window-add="class" style="margin-top:9px">+ Add allowed window</button><div class="form-hint">Each window must be long enough for the whole class, with no overlaps required between windows.</div></div>
+        </div>
+        <div class="field-grid"><label class="field">Preferred start (optional)<input type="time" name="preferred" step="${timeStep()}" value="${esc(record.preferred||'')}" /><span class="explain">A soft preference; constraints always take priority.</span></label></div>`;
+      (record.windows||[]).forEach(w=>addWindowRow('class',w));
+      if(!(record.windows||[]).length)addWindowRow('class',[scenario.settings.dayStart,scenario.settings.dayEnd]);
+      updateTimeAreas();
+    }
+  }
+  function updateTimeAreas(){
+    const mode=$('timeMode')?.value;    if(!$('fixedTimeArea'))return;
+    $('fixedTimeArea').hidden=mode!=='fixed';
+    $('customTimeArea').hidden=mode!=='custom';
+    const fixed=$('fixedTimeArea').querySelector('input');fixed.required=mode==='fixed';
+  }
+  function openRecordPanel(kind,index=null){
+    if(searching)return;
+    const isNew=index===null;
+    if(isNew&&scenario[kind==='room'?'rooms':'classes'].length>=(kind==='room'?12:24)){
+      showError('The current solver supports a maximum of '+(kind==='room'?12:24)+' '+(kind==='room'?'rooms.':'classes.'));return;
+    }
+    const item=isNew?(kind==='room'?{
+      id:uniqueId('R-'+(scenario.rooms.length+1),'room'),name:'New room',capacity:30,type:'Seminar',facilities:['whiteboard'],unavailable:[]
+    }:{
+      id:uniqueId('CLASS-'+(scenario.classes.length+1),'class'),name:'New class',students:20,duration:60,requires:[],roomTypes:[],windows:[[scenario.settings.dayStart,scenario.settings.dayEnd]],preferred:null
+    }):clone(scenario[kind==='room'?'rooms':'classes'][index]);
+    if(!item)return;
+    if(kind==='class'&&item.duration%scenario.settings.slotMinutes!==0)item.duration=scenario.settings.slotMinutes;
+    activateView(kind==='room'?'rooms':'classes');
+    $(kind==='room'?'recordMountRooms':'recordMountClasses').appendChild($('recordPanel'));
+    activeRecord={kind,index};
+    $('recordTitle').textContent=(isNew?'Add ':'Edit ')+(kind==='room'?'room':'class');
+    $('recordSubtitle').textContent=isNew?'Complete the fields and save to add the record.':'Edit the details, then save to update the scenario.';
+    $('saveRecordBtn').textContent=isNew?'Add '+kind:'Save changes';
+    $('formError').hidden=true;$('formError').textContent='';
+    renderRecordFields(kind,item);
+    $('recordPanel').hidden=false;
+    $('recordPanel').scrollIntoView({behavior:'smooth',block:'start'});
+    setTimeout(()=>$('recordFields').querySelector('input')?.focus({preventScroll:true}),80);
+  }
+  function closeRecordPanel(){activeRecord=null;$('recordPanel').hidden=true;$('formError').hidden=true;}
+  function formValue(name){return $('recordForm').elements.namedItem(name)?.value||'';}
+  function readRecord(){
+    const kind=activeRecord.kind,id=formValue('id').trim(),name=formValue('name').trim();
+    if(!id||!name)throw new Error('Please enter both an ID and a name.');
+    if(kind==='room'){
+      const capacity=Number(formValue('capacity')),type=formValue('type').trim();
+      if(!Number.isInteger(capacity)||capacity<1||capacity>100000)throw new Error('Room capacity must be a whole number between 1 and 100,000.');
+      if(!type)throw new Error('Please specify a room type.');
+      const facilities=distinct([...selectedValues('facility'),...commaTags(formValue('extraFacilities'))]);
+      return {id,name,capacity,type,facilities,unavailable:readWindows('room')};
+    }
+    const students=Number(formValue('students')),duration=Number(formValue('duration'));
+    if(!Number.isInteger(students)||students<1||students>100000)throw new Error('Number of students must be a whole number between 1 and 100,000.');
+    if(!Number.isInteger(duration)||duration<=0)throw new Error('Duration must be a positive whole number of minutes.');
+    const mode=formValue('timeMode'),st=scenario.settings;
+    let windows;
+    if(mode==='any')windows=[[st.dayStart,st.dayEnd]];
+    else if(mode==='am')windows=[[st.dayStart,minuteText(Math.min(minutes('12:00'),minutes(st.dayEnd)))]];
+    else if(mode==='pm')windows=[[minuteText(Math.max(minutes('12:00'),minutes(st.dayStart))),st.dayEnd]];
+    else if(mode==='fixed'){
+      const a=formValue('fixedStart');
+      if(!a)throw new Error('Choose a fixed start time.');
+      const end=minutes(a)+duration;
+      if(end>=24*60)throw new Error('Fixed class end must be before midnight.');
+      windows=[[a,minuteText(end)]];
+    }
+    else if(mode==='custom'){windows=readWindows('class');if(!windows.length)throw new Error('Add at least one allowed time window.');}
+    else throw new Error('Choose a valid time restriction.');
+    const preferred=formValue('preferred').trim();
+    return {id,name,students,duration,roomTypes:distinct([...selectedValues('allowedType'),...commaTags(formValue('extraTypes'))]),requires:distinct([...selectedValues('required'),...commaTags(formValue('extraRequired'))]),windows,preferred:preferred||null};
+  }
+  function commitData(candidate){
+    parseScenario(candidate,false); // Check input integrity; temporarily infeasible scenarios are editable.
+    scenario=candidate;saveLocal();clearError();updateInfo();resetOutput();
+    if(!$('editorPanel').hidden)$('jsonInput').value=JSON.stringify(scenario,null,2);
+    closeRecordPanel();
+  }
+  function submitRecord(event){
+    event.preventDefault();if(!activeRecord||searching)return;
+    try{
+      const record=readRecord(),candidate=clone(scenario);
+      const coll=activeRecord.kind==='room'?'rooms':'classes';
+      if(activeRecord.index===null)candidate[coll].push(record);else candidate[coll][activeRecord.index]=record;
+      commitData(candidate);
+    }catch(e){$('formError').textContent=e.message;$('formError').hidden=false;$('formError').scrollIntoView({behavior:'smooth',block:'nearest'});}
+  }
+  function deleteRecord(kind,index){
+    if(searching)return;
+    const coll=kind==='room'?'rooms':'classes',items=scenario[coll],item=items[index];if(!item)return;
+    if(items.length<=1){showError('At least one '+kind+' is required. Edit this one or reset the demo instead.');return;}
+    if(!confirm(`Delete ${kind} "${item.name}" (${item.id})? This changes the optimisation scenario.`))return;
+    const candidate=clone(scenario);candidate[coll].splice(index,1);
+    try{commitData(candidate);}catch(e){showError(e.message);}
+  }
+  function handleEntryAction(event){
+    const btn=event.target.closest('button[data-action]');if(!btn)return;
+    const index=Number(btn.dataset.index),kind=btn.dataset.kind;
+    if(!['room','class'].includes(kind)||!Number.isInteger(index)||index<0)return;
+    if(btn.dataset.action==='edit')openRecordPanel(kind,index);
+    else if(btn.dataset.action==='delete')deleteRecord(kind,index);
+  }
+
+  // Generate an editable, locally saved scenario. The generators never call a remote service.
+  const randomInt=(min,max)=>min+Math.floor(Math.random()*(max-min+1));
+  const pick=list=>list[randomInt(0,list.length-1)];
+  function shuffle(items){const a=[...items];for(let i=a.length-1;i>0;i--){const j=randomInt(0,i);[a[i],a[j]]=[a[j],a[i]];}return a;}
+  function parseCount(input,limit,label){
+    const raw=input.value.trim(),n=Number(raw);
+    if(!raw||!Number.isInteger(n)||n<1||n>limit)throw new Error(label+' count must be a whole number from 1 to '+limit+'.');
+    return n;
+  }
+  function generateRandomClasses(count){
+    const st=scenario.settings,step=st.slotMinutes,start=minutes(st.dayStart),end=minutes(st.dayEnd),slots=(end-start)/step;
+    const names=shuffle(['Mathematics Workshop','Statistics Foundations','Applied Physics','Economics Seminar','Data Analysis','Engineering Design','Biology Practical','Computer Programming','Public Policy','Business Analytics','Research Methods','Environmental Studies','Digital Humanities','Financial Modelling','Law & Society','Health Informatics','Chemistry Fundamentals','AI Applications','Project Management','Operations Research','History Seminar','Language Studies','Human Geography','Design Thinking']);
+    // Build a feasible hidden reference schedule first; every generated class has a valid, non-overlapping slot.
+    const busy=scenario.rooms.map(room=>{
+      let bits=0;
+      for(const [a,b] of room.unavailable||[]){
+        const s=(minutes(a)-start)/step,e=(minutes(b)-start)/step;
+        for(let t=s;t<e;t++)bits|=(1<<t);
+      }
+      return bits>>>0;
+    });
+    const classes=[];
+    for(let i=0;i<count;i++){
+      const candidates=[];
+      scenario.rooms.forEach((room,ri)=>{
+        const durationOptions=[step,step*2,step*3,step*4].filter(d=>d<=Math.min(120,end-start));
+        for(const duration of durationOptions){
+          const allowed=[];
+          for(let s=0;s<=slots-duration/step;s++){
+            const block=mask(s,duration/step);
+            if(!(block&busy[ri]))allowed.push(s);
+          }
+          if(allowed.length)candidates.push({room,ri,duration,allowed});
+        }
+      });
+      if(!candidates.length)throw new Error('The current rooms cannot fit '+count+' classes without overlaps. Try a smaller class count or more rooms.');
+      // Prefer rooms with free time rather than repeatedly congesting a single resource.
+      const leastBusy=candidates.sort((a,b)=>popcount(busy[a.ri])-popcount(busy[b.ri]));
+      const pool=leastBusy.slice(0,Math.min(18,leastBusy.length));
+      const {room,ri,duration,allowed}=pick(pool);
+      const plannedSlot=pick(allowed);
+      busy[ri]=(busy[ri]|mask(plannedSlot,duration/step))>>>0;
+      const plannedStart=start+plannedSlot*step;
+      let mode=pick(['any','any','any','am','pm','fixed']);
+      if(mode==='am'&&plannedStart+duration>Math.min(end,12*60))mode='any';
+      if(mode==='pm'&&plannedStart<Math.max(start,12*60))mode='any';
+      const windows=mode==='fixed'?[[minuteText(plannedStart),minuteText(plannedStart+duration)]]:
+        mode==='am'?[[st.dayStart,minuteText(Math.min(end,12*60))]]:
+        mode==='pm'?[[minuteText(Math.max(start,12*60)),st.dayEnd]]:[[st.dayStart,st.dayEnd]];
+      const required=shuffle(room.facilities||[]).slice(0,randomInt(0,Math.min(2,(room.facilities||[]).length)));
+      const students=Math.max(1,Math.min(room.capacity,Math.round(room.capacity*(.42+Math.random()*.5))));
+      classes.push({id:'CL-'+String(i+1).padStart(3,'0'),name:names[i],students,duration,
+        roomTypes:Math.random()<.8?[room.type]:[],requires:required,windows,preferred:minuteText(plannedStart)});
+    }
+    return classes;
+  }
+  function generateRandomRooms(count){
+    // If we can retain one compatible template for each existing room, any previously feasible
+    // schedule remains feasible: capacity never shrinks, facilities are never removed,
+    // and availability is never reduced. Room IDs and characteristics still get randomised.
+    const original=shuffle(scenario.rooms);
+    const types=distinct([...original.map(r=>r.type),...scenario.classes.flatMap(c=>c.roomTypes||[]),'Lecture','Seminar','Computer Lab','Science Lab']);
+    const existing=original.slice(0,count);
+    const rooms=[];
+    for(let i=0;i<count;i++){
+      const source=existing[i]||null;
+      const type=source?source.type:pick(types);
+      const compatible=scenario.classes.filter(c=>!(c.roomTypes||[]).length||c.roomTypes.includes(type));
+      const needed=compatible.reduce((n,c)=>Math.max(n,c.students),0);
+      const base=type==='Computer Lab'?['computers','projector']:type==='Science Lab'?['lab benches','projector']:['projector','whiteboard'];
+      const capacity=source?
+        Math.ceil((source.capacity+randomInt(0,Math.max(5,Math.ceil(source.capacity*.35))))/5)*5:
+        Math.ceil(Math.max(needed,randomInt(30,100))/5)*5;
+      const additions=['whiteboard','microphone','projector','computers','lab benches'].filter(f=>Math.random()<.22);
+      const facilities=distinct([...(source?source.facilities:base),...additions]);
+      rooms.push({id:'RM-'+String(i+1).padStart(2,'0'),name:type+' '+String(i+1).padStart(2,'0'),capacity,type,facilities,unavailable:[]});
+    }
+    return rooms;
+  }
+  function randomise(kind){
+    if(searching)return;
+    const isClass=kind==='class',input=$(isClass?'classRandomCount':'roomRandomCount'),limit=isClass?24:12;
+    const coll=isClass?'classes':'rooms',feedback=$(isClass?'randomClassFeedback':'randomRoomFeedback');
+    try{
+      const count=parseCount(input,limit,isClass?'Class':'Room');
+      if(!confirm('Replace all '+scenario[coll].length+' current '+coll+' with '+count+' randomly generated '+coll+'? Your current '+coll+' will be replaced. Export JSON first if you want a backup.'))return;
+      const candidate=clone(scenario);
+      candidate[coll]=isClass?generateRandomClasses(count):generateRandomRooms(count);
+      commitData(candidate);
+      feedback.textContent='Generated '+count+' '+coll+'. Changes saved locally — run optimisation to create the new timetable.';
+      feedback.hidden=false;
+    }catch(e){feedback.hidden=true;showError('Randomisation failed: '+e.message);$('errorBox').scrollIntoView({block:'nearest',behavior:'smooth'});}
+  }
+  $('randomClassesBtn').addEventListener('click',()=>randomise('class'));
+  $('randomRoomsBtn').addEventListener('click',()=>randomise('room'));
+
+  function downloadData(){
+    const text=JSON.stringify(scenario,null,2),url=URL.createObjectURL(new Blob([text],{type:'application/json'}));
+    const link=document.createElement('a');link.href=url;link.download='scheduling_workbench_scenario.json';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  $('addClassBtn').addEventListener('click',()=>openRecordPanel('class'));
+  $('addRoomBtn').addEventListener('click',()=>openRecordPanel('room'));
+  $('classList').addEventListener('click',handleEntryAction);
+  $('roomList').addEventListener('click',handleEntryAction);
+  $('recordForm').addEventListener('submit',submitRecord);
+  $('recordForm').addEventListener('change',e=>{if(e.target.id==='timeMode')updateTimeAreas();});
+  $('recordForm').addEventListener('click',e=>{
+    const add=e.target.closest('[data-window-add]');if(add){addWindowRow(add.dataset.windowAdd,[scenario.settings.dayStart,scenario.settings.dayEnd]);return;}
+    const remove=e.target.closest('[data-window-remove]');if(remove)remove.closest('.window-row')?.remove();
+  });
+  $('closeRecordBtn').addEventListener('click',closeRecordPanel);
+  $('cancelRecordBtn').addEventListener('click',closeRecordPanel);
+  $('exportDataBtn').addEventListener('click',downloadData);
+  $('importDataBtn').addEventListener('click',()=>$('importDataInput').click());
+  $('importDataInput').addEventListener('change',async e=>{
+    const file=e.target.files?.[0];if(!file)return;
+    try{const candidate=JSON.parse(await file.text());commitData(candidate);setEditor(false);}catch(err){showError('Import failed: '+err.message);}finally{e.target.value='';}
+  });
+  let restoredSavedScenario=false;
+  try{
+    const saved=localStorage.getItem(STORE_KEY)||localStorage.getItem('roomflow-scenario-v2');
+    if(saved){const candidate=JSON.parse(saved);parseScenario(candidate,false);scenario=candidate;restoredSavedScenario=true;saveLocal();}
+  }catch(_){/* Private browsing and blocked local storage still allow in-memory editing. */}
+  $('runBtn').addEventListener('click',run);
+  $('cancelBtn').addEventListener('click',()=>{if(currentSearch)currentSearch.state.stop=true;});
+  $('editBtn').addEventListener('click',()=>setEditor($('editorPanel').hidden));
+  $('closeEditorBtn').addEventListener('click',()=>setEditor(false));
+  $('applyBtn').addEventListener('click',()=>{
+    try{
+      const candidate=JSON.parse($('jsonInput').value);
+      commitData(candidate);setEditor(false);
+    }catch(e){showError('Could not apply scenario: '+e.message);$('errorBox').scrollIntoView({block:'nearest',behavior:'smooth'});}
+  });
+  $('resetBtn').addEventListener('click',()=>{scenario=clone(DEMO);forgetLocal();clearError();updateInfo();resetOutput();setEditor(false);closeRecordPanel();});
+  $('usedOnlyBtn').addEventListener('click',()=>{showAllRooms=false;if(solution)renderCalendar(prepared,solution);});
+  $('allRoomsBtn').addEventListener('click',()=>{showAllRooms=true;if(solution)renderCalendar(prepared,solution);});
+  $('csvBtn').addEventListener('click',exportCSV);
+  updateInfo();resetOutput();
+  // Display a fully solved timetable immediately for first-time visitors.
+  // Returning users keep control of when their saved, possibly large, scenario runs.
+  if(!restoredSavedScenario)setTimeout(run,30);
+})();
+</script>
+</body>
+</html>
